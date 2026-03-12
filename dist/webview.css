@@ -1,0 +1,50 @@
+/* webview/webview.css */
+body {
+  padding: 10px;
+  font-family: var(--vscode-editor-font-family);
+  color: var(--vscode-editor-foreground);
+  background-color: var(--vscode-editor-background);
+}
+.cm-editor {
+  height: 100vh;
+}
+.cm-line:has(> .obsidian-preview-widget) {
+}
+.obsidian-preview-widget {
+  font-family: var(--vscode-editor-font-family);
+  line-height: 1.5;
+  padding: 2px 0;
+}
+.obsidian-preview-widget h1,
+.obsidian-preview-widget h2,
+.obsidian-preview-widget h3,
+.obsidian-preview-widget h4,
+.obsidian-preview-widget h5,
+.obsidian-preview-widget h6 {
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+}
+.obsidian-preview-widget p {
+  margin-top: 0;
+  margin-bottom: 0px;
+}
+.obsidian-preview-widget code {
+  background-color: var(--vscode-textCodeBlock-background);
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: var(--vscode-editor-font-family);
+}
+.obsidian-preview-widget pre {
+  background-color: var(--vscode-textCodeBlock-background);
+  padding: 10px;
+  border-radius: 5px;
+  overflow-x: auto;
+}
+.obsidian-preview-widget blockquote {
+  border-left: 4px solid var(--vscode-textBlockQuote-border);
+  padding-left: 10px;
+  margin-left: 0;
+  color: var(--vscode-textBlockQuote-background);
+}
+/*# sourceMappingURL=webview.css.map */

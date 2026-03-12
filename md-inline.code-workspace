@@ -1,0 +1,16 @@
+{
+    "folders": [
+        {
+            "path": "."
+        }
+    ],
+    "settings": {
+        "typescript.tsdk": "node_modules/typescript/lib",
+        "search.exclude": {
+            "**/out": true,
+            "**/dist": true,
+            "**/node_modules": true
+        },
+        "obsidianMdInline.hideSyntaxMarkers": true
+    }
+}
