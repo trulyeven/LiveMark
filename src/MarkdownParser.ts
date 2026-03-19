@@ -8,7 +8,8 @@ export type DecorationType = 'hide' | 'bold' | 'italic' | 'strikethrough' | 'cod
     'heading1' | 'heading2' | 'heading3' | 'heading4' | 'heading5' | 'heading6' |
     'tableRow' | 'tableHeaderRow' | 'tableCell' | 'link' | 'image' | 'hr' |
     'blockquote_bg' | 'blockquote_marker' |
-    'ul_bullet_1' | 'ul_bullet_2' | 'ul_bullet_3' | 'ul_bullet_4';
+    'ul_bullet_1' | 'ul_bullet_2' | 'ul_bullet_3' | 'ul_bullet_4' |
+    'task_checked' | 'task_unchecked';
 
 export interface DecorationRange {
     startPos: number;
@@ -458,9 +459,29 @@ export class MarkdownParser {
             if (activeEnd === -1 || activeEnd > end) activeEnd = end;
 
             pushRange(markerStart, i, 'hide', { blockId, activeRangeStart: start, activeRangeEnd: activeEnd });
-            const levelIndex = ((listDepth - 1) % 4) + 1;
-            const bulletType = `ul_bullet_${levelIndex}` as DecorationType;
-            pushRange(markerStart, markerStart, bulletType, { blockId });
+            
+            // Handle Task Lists
+            if (node.checked !== null && node.checked !== undefined) {
+                const checked = node.checked;
+                const checkboxSearchText = text.substring(i, i + 10); // Look ahead for [ ] or [x]
+                const checkboxMatch = checkboxSearchText.match(/^\[([ xX])\]/);
+                if (checkboxMatch) {
+                    const checkboxStart = i;
+                    const checkboxEnd = i + checkboxMatch[0].length;
+                    const type = checked ? 'task_checked' : 'task_unchecked';
+                    
+                    pushRange(checkboxStart, checkboxEnd, 'hide', { blockId, activeRangeStart: start, activeRangeEnd: activeEnd });
+                    pushRange(checkboxStart, checkboxStart, type, { blockId });
+                    
+                    // Update i to skip the checkbox
+                    i = checkboxEnd;
+                    while (i < end && (text[i] === ' ' || text[i] === '\t')) { i++; }
+                }
+            } else {
+                const levelIndex = ((listDepth - 1) % 4) + 1;
+                const bulletType = `ul_bullet_${levelIndex}` as DecorationType;
+                pushRange(markerStart, markerStart, bulletType, { blockId });
+            }
         }
     }
 

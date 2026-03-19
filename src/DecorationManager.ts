@@ -84,6 +84,20 @@ export class DecorationManager {
                 textDecoration: 'none; display: inline-block; vertical-align: middle; margin-right: 0.5em;'
             }
         }));
+        this.decorationTypes.set('task_checked', vscode.window.createTextEditorDecorationType({
+            before: {
+                contentText: '☑',
+                color: new vscode.ThemeColor('symbolIcon.booleanForeground'),
+                textDecoration: 'none; display: inline-block; vertical-align: middle; margin-right: 0.5em; font-size: 1.2em;'
+            }
+        }));
+        this.decorationTypes.set('task_unchecked', vscode.window.createTextEditorDecorationType({
+            before: {
+                contentText: '☐',
+                color: new vscode.ThemeColor('editor.foreground'),
+                textDecoration: 'none; display: inline-block; vertical-align: middle; margin-right: 0.5em; font-size: 1.2em;'
+            }
+        }));
 
         // Headings
         this.decorationTypes.set('heading1', vscode.window.createTextEditorDecorationType({

@@ -63,8 +63,16 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     // Initial pass & Context check
-    const initialEnabled = vscode.workspace.getConfiguration().get<boolean>('obsidianMdInline.hideSyntaxMarkers') ?? true;
+    const config = vscode.workspace.getConfiguration();
+    const defaultMode = config.get<string>('obsidianMdInline.defaultViewMode') ?? 'rendered';
+    const initialEnabled = config.get<boolean>('obsidianMdInline.hideSyntaxMarkers') ?? (defaultMode === 'rendered');
+    
     vscode.commands.executeCommand('setContext', 'obsidianMdInline.decorationsEnabled', initialEnabled);
+    
+    // Also update the config if hideSyntaxMarkers was undefined to ensure consistency
+    if (config.get('obsidianMdInline.hideSyntaxMarkers') === undefined) {
+        config.update('obsidianMdInline.hideSyntaxMarkers', initialEnabled, vscode.ConfigurationTarget.Global);
+    }
 
     if (vscode.window.activeTextEditor) {
         updateAll(vscode.window.activeTextEditor);
