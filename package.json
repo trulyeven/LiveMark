@@ -1,6 +1,6 @@
 {
-    "name": "obsidian-md-inline",
-    "displayName": "Obsidian-like Markdown Inline",
+    "name": "livemark",
+    "displayName": "LiveMark - Obsidian-like Markdown Inline",
     "description": "An Obsidian-like inline live preview editor for Markdown files",
     "version": "0.0.1",
     "repository": {
@@ -22,7 +22,7 @@
     "contributes": {
         "commands": [
             {
-                "command": "obsidian-md-inline.renderMode",
+                "command": "livemark.renderMode",
                 "title": "MD: Show Rendered View",
                 "icon": {
                     "light": "media/default-view-light.svg",
@@ -30,7 +30,7 @@
                 }
             },
             {
-                "command": "obsidian-md-inline.rawMode",
+                "command": "livemark.rawMode",
                 "title": "MD: Show Raw Markdown",
                 "icon": {
                     "light": "media/raw-view-light.svg",
@@ -41,12 +41,12 @@
         "configuration": {
             "title": "Obsidian MD Editor",
             "properties": {
-                "obsidianMdInline.hideSyntaxMarkers": {
+                "livemark.hideSyntaxMarkers": {
                     "type": "boolean",
                     "default": true,
                     "description": "Hide markdown syntax markers like ** and ## when not actively editing the line"
                 },
-                "obsidianMdInline.defaultViewMode": {
+                "livemark.defaultViewMode": {
                     "type": "string",
                     "enum": [
                         "rendered",
@@ -64,8 +64,8 @@
         "menus": {
             "editor/title": [
                 {
-                    "command": "obsidian-md-inline.rawMode",
-                    "when": "editorLangId == markdown && obsidianMdInline.decorationsEnabled",
+                    "command": "livemark.rawMode",
+                    "when": "editorLangId == markdown && livemark.decorationsEnabled",
                     "group": "navigation@0",
                     "icon": {
                         "light": "media/raw-view-light.svg",
@@ -73,8 +73,8 @@
                     }
                 },
                 {
-                    "command": "obsidian-md-inline.renderMode",
-                    "when": "editorLangId == markdown && !obsidianMdInline.decorationsEnabled",
+                    "command": "livemark.renderMode",
+                    "when": "editorLangId == markdown && !livemark.decorationsEnabled",
                     "group": "navigation@0",
                     "icon": {
                         "light": "media/default-view-light.svg",
@@ -87,37 +87,25 @@
     "scripts": {
         "vscode:prepublish": "pnpm run package",
         "compile": "pnpm run check-types && pnpm run lint && tsx scripts/build.ts",
-        "watch": "npm-run-all -p watch:*",
+        "watch": "pnpm run \"/^watch:.*/\" --parallel",
         "watch:esbuild": "tsx scripts/build.ts --watch",
         "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
         "package": "pnpm run check-types && pnpm run lint && tsx scripts/build.ts --production",
-        "compile-tests": "tsc -p . --outDir out",
-        "watch-tests": "tsc -p . -w --outDir out",
-        "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
         "check-types": "tsc --noEmit",
-        "lint": "eslint src --ext ts",
-        "test": "vscode-test"
+        "lint": "eslint src"
     },
     "devDependencies": {
+        "@eslint/js": "^10.0.1",
         "@types/mdast": "^4.0.4",
-        "@types/mocha": "^10.0.10",
         "@types/node": "~25.5.0",
         "@types/vscode": "^1.110.0",
-        "@typescript-eslint/eslint-plugin": "^8.57.1",
-        "@typescript-eslint/parser": "^8.57.1",
-        "@vscode/test-cli": "^0.0.12",
-        "@vscode/test-electron": "^2.5.2",
         "esbuild": "^0.27.4",
-        "eslint": "^10.0.3",
-        "npm-run-all": "^4.1.5",
-        "tsx": "^4.21.0",
-        "typescript": "^5.9.3"
-    },
-    "dependencies": {
-        "@codemirror/lang-markdown": "^6.5.0",
-        "mdast": "^3.0.0",
+        "eslint": "^9.39.4",
         "remark-gfm": "^4.0.1",
         "remark-parse": "^11.0.0",
+        "tsx": "^4.21.0",
+        "typescript": "^5.9.3",
+        "typescript-eslint": "^8.57.1",
         "unified": "^11.0.5",
         "unist-util-visit": "^5.1.0",
         "unist-util-visit-parents": "^6.0.2"

@@ -6,6 +6,6 @@ src/**
 webview/**
 .gitignore
 tsconfig.json
-esbuild.js
+scripts/**
 **/*.map
 **/*.ts

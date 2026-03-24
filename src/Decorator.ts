@@ -17,7 +17,7 @@ export class Decorator {
         this.perfStatusBar.text = "$(dashboard) MD Perf";
         this.perfStatusBar.show();
 
-        this.enabled = vscode.workspace.getConfiguration().get<boolean>('obsidianMdInline.hideSyntaxMarkers') ?? true;
+        this.enabled = vscode.workspace.getConfiguration().get<boolean>('livemark.hideSyntaxMarkers') ?? true;
 
         // Register to parse events
         this.parseManager.onDidParse(({ uri }) => {

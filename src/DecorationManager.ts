@@ -84,6 +84,8 @@ export class DecorationManager {
                 textDecoration: 'none; display: inline-block; vertical-align: middle; margin-right: 0.5em;'
             }
         }));
+
+        // Tasks
         this.decorationTypes.set('task_checked', vscode.window.createTextEditorDecorationType({
             before: {
                 contentText: '☑',
@@ -115,6 +117,7 @@ export class DecorationManager {
             fontWeight: 'bold',
             color: new vscode.ThemeColor('symbolIcon.classForeground'),
             textDecoration: 'none; font-size: 1.5em !important;'
+
         }));
         this.decorationTypes.set('heading3', vscode.window.createTextEditorDecorationType({
             fontWeight: 'bold',
@@ -188,7 +191,6 @@ export class DecorationManager {
             textDecoration: 'none; font-size: 0px !important; letter-spacing: -1ch !important;',
             before: {
                 contentText: '',
-                // ch 단위를 사용하여 테이블 너비만큼만 선이 그려지도록 설정
                 textDecoration: `none; display: inline-block; position: absolute; width: ${width}ch; border-top: 8px double #666; top: 30%;`,
             }
         }));

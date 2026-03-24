@@ -888,7 +888,7 @@ var CallableInstance = (
    * @param {string | symbol} property
    * @returns {(...parameters: Array<unknown>) => unknown}
    */
-  function(property) {
+  (function(property) {
     const self = this;
     const constr = self.constructor;
     const proto = (
@@ -903,7 +903,7 @@ var CallableInstance = (
     };
     Object.setPrototypeOf(apply, proto);
     return apply;
-  }
+  })
 );
 
 // node_modules/.pnpm/unified@11.0.5/node_modules/unified/lib/index.js
@@ -3730,8 +3730,7 @@ function splice(list3, start, remove, items) {
     parameters.unshift(start, remove);
     list3.splice(...parameters);
   } else {
-    if (remove)
-      list3.splice(start, remove);
+    if (remove) list3.splice(start, remove);
     while (chunkStart < items.length) {
       parameters = items.slice(chunkStart, chunkStart + 1e4);
       parameters.unshift(start, 0);
@@ -3768,8 +3767,7 @@ function syntaxExtension(all2, extension2) {
     let code3;
     if (right) {
       for (code3 in right) {
-        if (!hasOwnProperty.call(left, code3))
-          left[code3] = [];
+        if (!hasOwnProperty.call(left, code3)) left[code3] = [];
         const value = right[code3];
         constructs(
           // @ts-expect-error Looks like a list.
@@ -3984,8 +3982,7 @@ function initializeDocument(effects) {
     return effects.check(containerConstruct, thereIsANewContainer, thereIsNoNewContainer)(code3);
   }
   function thereIsANewContainer(code3) {
-    if (childFlow)
-      closeFlow();
+    if (childFlow) closeFlow();
     exitContainers(continued);
     return documentContinued(code3);
   }
@@ -4005,8 +4002,7 @@ function initializeDocument(effects) {
   }
   function flowStart(code3) {
     if (code3 === null) {
-      if (childFlow)
-        closeFlow();
+      if (childFlow) closeFlow();
       exitContainers(0);
       effects.consume(code3);
       return;
@@ -4038,11 +4034,9 @@ function initializeDocument(effects) {
   }
   function writeToChild(token, endOfFile) {
     const stream = self.sliceStream(token);
-    if (endOfFile)
-      stream.push(null);
+    if (endOfFile) stream.push(null);
     token.previous = childToken;
-    if (childToken)
-      childToken.next = token;
+    if (childToken) childToken.next = token;
     childToken = token;
     childFlow.defineSkip(token.start);
     childFlow.write(stream);
@@ -4910,8 +4904,7 @@ var SpliceBuffer = class {
     if (index2 < 0 || index2 >= this.left.length + this.right.length) {
       throw new RangeError("Cannot access index `" + index2 + "` in a splice buffer of size `" + (this.left.length + this.right.length) + "`");
     }
-    if (index2 < this.left.length)
-      return this.left[index2];
+    if (index2 < this.left.length) return this.left[index2];
     return this.right[this.right.length - index2 + this.left.length - 1];
   }
   /**
@@ -4977,8 +4970,7 @@ var SpliceBuffer = class {
     const count = deleteCount || 0;
     this.setCursor(Math.trunc(start));
     const removed = this.right.splice(this.right.length - count, Number.POSITIVE_INFINITY);
-    if (items)
-      chunkedPush(this.left, items);
+    if (items) chunkedPush(this.left, items);
     return removed.reverse();
   }
   /**
@@ -5058,8 +5050,7 @@ var SpliceBuffer = class {
    *   Nothing.
    */
   setCursor(n) {
-    if (n === this.left.length || n > this.left.length && this.right.length === 0 || n < 0 && this.left.length === 0)
-      return;
+    if (n === this.left.length || n > this.left.length && this.right.length === 0 || n < 0 && this.left.length === 0) return;
     if (n < this.left.length) {
       const removed = this.left.splice(n, Number.POSITIVE_INFINITY);
       chunkedPush(this.right, removed.reverse());
@@ -5445,8 +5436,7 @@ function factoryLabel(effects, ok3, nok, type, markerType, stringType) {
       return atBreak(code3);
     }
     effects.consume(code3);
-    if (!seen)
-      seen = !markdownSpace(code3);
+    if (!seen) seen = !markdownSpace(code3);
     return code3 === 92 ? labelEscape : labelInside;
   }
   function labelEscape(code3) {
@@ -7178,8 +7168,7 @@ function resolveAllLineSuffixes(events, context) {
             size++;
             bufferIndex--;
           }
-          if (bufferIndex)
-            break;
+          if (bufferIndex) break;
           bufferIndex = -1;
         } else if (chunk === -2) {
           tabs = true;
@@ -7589,34 +7578,32 @@ function serializeChunks(chunks, expandTabs) {
     let value;
     if (typeof chunk === "string") {
       value = chunk;
-    } else
-      switch (chunk) {
-        case -5: {
-          value = "\r";
-          break;
-        }
-        case -4: {
-          value = "\n";
-          break;
-        }
-        case -3: {
-          value = "\r\n";
-          break;
-        }
-        case -2: {
-          value = expandTabs ? " " : "	";
-          break;
-        }
-        case -1: {
-          if (!expandTabs && atTab)
-            continue;
-          value = " ";
-          break;
-        }
-        default: {
-          value = String.fromCharCode(chunk);
-        }
+    } else switch (chunk) {
+      case -5: {
+        value = "\r";
+        break;
       }
+      case -4: {
+        value = "\n";
+        break;
+      }
+      case -3: {
+        value = "\r\n";
+        break;
+      }
+      case -2: {
+        value = expandTabs ? " " : "	";
+        break;
+      }
+      case -1: {
+        if (!expandTabs && atTab) continue;
+        value = " ";
+        break;
+      }
+      default: {
+        value = String.fromCharCode(chunk);
+      }
+    }
     atTab = chunk === -2;
     result.push(value);
   }
@@ -7710,8 +7697,7 @@ function preprocess() {
           case 9: {
             next = Math.ceil(column / 4) * 4;
             chunks.push(-2);
-            while (column++ < next)
-              chunks.push(-1);
+            while (column++ < next) chunks.push(-1);
             break;
           }
           case 10: {
@@ -7728,10 +7714,8 @@ function preprocess() {
       startPosition = endPosition + 1;
     }
     if (end) {
-      if (atCarriageReturn)
-        chunks.push(-5);
-      if (buffer)
-        chunks.push(buffer);
+      if (atCarriageReturn) chunks.push(-5);
+      if (buffer) chunks.push(buffer);
       chunks.push(null);
     }
     return chunks;
@@ -7975,8 +7959,7 @@ function compiler(options) {
           while (tailIndex--) {
             const tailEvent = events[tailIndex];
             if (tailEvent[1].type === "lineEnding" || tailEvent[1].type === "lineEndingBlank") {
-              if (tailEvent[0] === "exit")
-                continue;
+              if (tailEvent[0] === "exit") continue;
               if (lineIndex) {
                 events[lineIndex][1].type = "lineEndingBlank";
                 listSpread = true;
@@ -8020,8 +8003,7 @@ function compiler(options) {
     return open;
     function open(token) {
       enter.call(this, create(token), token);
-      if (and)
-        and.call(this, token);
+      if (and) and.call(this, token);
     }
   }
   function buffer() {
@@ -8045,8 +8027,7 @@ function compiler(options) {
   function closer(and) {
     return close;
     function close(token) {
-      if (and)
-        and.call(this, token);
+      if (and) and.call(this, token);
       exit3.call(this, token);
     }
   }
@@ -8092,8 +8073,7 @@ function compiler(options) {
     node2.meta = data2;
   }
   function onexitcodefencedfence() {
-    if (this.data.flowCodeInside)
-      return;
+    if (this.data.flowCodeInside) return;
     this.buffer();
     this.data.flowCodeInside = true;
   }
@@ -8525,7 +8505,7 @@ var convert = (
    * @param {Test} [test]
    * @returns {Check}
    */
-  function(test) {
+  (function(test) {
     if (test === null || test === void 0) {
       return ok2;
     }
@@ -8546,7 +8526,7 @@ var convert = (
       return typeFactory(test);
     }
     throw new Error("Expected function, string, or object as test");
-  }
+  })
 );
 function anyFactory(tests) {
   const checks = [];
@@ -8558,8 +8538,7 @@ function anyFactory(tests) {
   function any(...parameters) {
     let index3 = -1;
     while (++index3 < checks.length) {
-      if (checks[index3].apply(this, parameters))
-        return true;
+      if (checks[index3].apply(this, parameters)) return true;
     }
     return false;
   }
@@ -8578,8 +8557,7 @@ function propertiesFactory(check) {
     );
     let key;
     for (key in check) {
-      if (nodeAsRecord[key] !== checkAsRecord[key])
-        return false;
+      if (nodeAsRecord[key] !== checkAsRecord[key]) return false;
     }
     return true;
   }
@@ -8889,8 +8867,7 @@ function findUrl(_, protocol, domain2, path3, match) {
     return false;
   }
   const parts = splitUrl(domain2 + path3);
-  if (!parts[0])
-    return false;
+  if (!parts[0]) return false;
   const result = {
     type: "link",
     title: null,
@@ -9763,8 +9740,7 @@ function inlineCode(node2, _, state) {
     const pattern = state.unsafe[index2];
     const expression = state.compilePattern(pattern);
     let match;
-    if (!pattern.atBreak)
-      continue;
+    if (!pattern.atBreak) continue;
     while (match = expression.exec(value)) {
       let position2 = match.index;
       if (value.charCodeAt(position2) === 10 && value.charCodeAt(position2 - 1) === 13) {
@@ -10484,10 +10460,8 @@ var code2 = 48;
 while (code2 < 123) {
   text4[code2] = emailAutolink;
   code2++;
-  if (code2 === 58)
-    code2 = 65;
-  else if (code2 === 91)
-    code2 = 97;
+  if (code2 === 58) code2 = 65;
+  else if (code2 === 91) code2 = 97;
 }
 text4[43] = emailAutolink;
 text4[45] = emailAutolink;
@@ -10919,8 +10893,7 @@ function tokenizeGfmFootnoteCall(effects, ok3, nok) {
     return callStart;
   }
   function callStart(code3) {
-    if (code3 !== 94)
-      return nok(code3);
+    if (code3 !== 94) return nok(code3);
     effects.enter("gfmFootnoteCallMarker");
     effects.consume(code3);
     effects.exit("gfmFootnoteCallMarker");
@@ -11137,14 +11110,12 @@ function gfmStrikethrough(options) {
     function more(code3) {
       const before = classifyCharacter(previous3);
       if (code3 === 126) {
-        if (size > 1)
-          return nok(code3);
+        if (size > 1) return nok(code3);
         effects.consume(code3);
         size++;
         return more;
       }
-      if (size < 2 && !single)
-        return nok(code3);
+      if (size < 2 && !single) return nok(code3);
       const token = effects.exit("strikethroughSequenceTemporary");
       const after = classifyCharacter(code3);
       token._open = !after || after === 2 && Boolean(before);
@@ -11283,10 +11254,8 @@ function tokenizeTable(effects, ok3, nok) {
     while (index2 > -1) {
       const type = self.events[index2][1].type;
       if (type === "lineEnding" || // Note: markdown-rs uses `whitespace` instead of `linePrefix`
-      type === "linePrefix")
-        index2--;
-      else
-        break;
+      type === "linePrefix") index2--;
+      else break;
     }
     const tail = index2 > -1 ? self.events[index2][1].type : null;
     const next = tail === "tableHead" || tail === "tableRow" ? bodyRowStart : headRowBefore;
@@ -11758,7 +11727,7 @@ var MarkdownParser = class {
   handlers;
   /**
    * Initialize the unified processor with remark-parse and remark-gfm.
-   * Sets up handlers for various Markdown node types.
+   * Sets up handlers for various Markdown node types
    */
   constructor() {
     this.processor = unified().use(remarkParse).use(remarkGfm);
@@ -11778,8 +11747,8 @@ var MarkdownParser = class {
     };
   }
   /**
-   * Parses the given Markdown text and returns an array of DecorationRange objects.
-   * Uses caching to skip parsing if the text hasn't changed.
+   * Parses the given Markdown text and returns an array of DecorationRange objects
+   * Uses caching to skip parsing if the text hasn't changed
   **/
   parse(text5) {
     if (!text5) {
@@ -11847,7 +11816,7 @@ var MarkdownParser = class {
     return ranges;
   }
   /**
-   * Determines a shared blockId for nested inline formatting elements.
+   * Determines a shared blockId for nested inline formatting elements
    */
   getFormattingRootId(node2, ancestors) {
     const formattingTypes = ["strong", "emphasis", "delete", "link", "inlineCode", "heading", "image"];
@@ -11979,7 +11948,6 @@ var MarkdownParser = class {
   }
   /**
    * Process Markdown tables. 
-   * Handles cell alignment, column widths calculation, and applying row/header lines.
    */
   processTable(node2, text5, pushRange, start, end) {
     const blockId = `table-${start}`;
@@ -12070,8 +12038,7 @@ var MarkdownParser = class {
           if (nonSpaceIdx !== -1) {
             innerStart = cellStart + nonSpaceIdx;
             let lastIdx = rawText.length - 1;
-            while (lastIdx >= 0 && (rawText[lastIdx] === " " || rawText[lastIdx] === "	" || rawText[lastIdx] === "|"))
-              lastIdx--;
+            while (lastIdx >= 0 && (rawText[lastIdx] === " " || rawText[lastIdx] === "	" || rawText[lastIdx] === "|")) lastIdx--;
             innerEnd = cellStart + lastIdx + 1;
           } else if (cellEnd > cellStart) {
             const mid = Math.floor((cellStart + cellEnd) / 2);
@@ -12132,12 +12099,28 @@ var MarkdownParser = class {
         i++;
       }
       let activeEnd = text5.indexOf("\n", markerStart);
-      if (activeEnd === -1 || activeEnd > end)
-        activeEnd = end;
+      if (activeEnd === -1 || activeEnd > end) activeEnd = end;
       pushRange(markerStart, i, "hide", { blockId, activeRangeStart: start, activeRangeEnd: activeEnd });
-      const levelIndex = (listDepth - 1) % 4 + 1;
-      const bulletType = `ul_bullet_${levelIndex}`;
-      pushRange(markerStart, markerStart, bulletType, { blockId });
+      if (node2.checked !== null && node2.checked !== void 0) {
+        const checked = node2.checked;
+        const checkboxSearchText = text5.substring(i, i + 10);
+        const checkboxMatch = checkboxSearchText.match(/^\[([ xX])\]/);
+        if (checkboxMatch) {
+          const checkboxStart = i;
+          const checkboxEnd = i + checkboxMatch[0].length;
+          const type = checked ? "task_checked" : "task_unchecked";
+          pushRange(checkboxStart, checkboxEnd, "hide", { blockId, activeRangeStart: start, activeRangeEnd: activeEnd });
+          pushRange(checkboxStart, checkboxStart, type, { blockId });
+          i = checkboxEnd;
+          while (i < end && (text5[i] === " " || text5[i] === "	")) {
+            i++;
+          }
+        }
+      } else {
+        const levelIndex = (listDepth - 1) % 4 + 1;
+        const bulletType = `ul_bullet_${levelIndex}`;
+        pushRange(markerStart, markerStart, bulletType, { blockId });
+      }
     }
   }
   /**
@@ -12345,6 +12328,20 @@ var DecorationManager = class {
         textDecoration: "none; display: inline-block; vertical-align: middle; margin-right: 0.5em;"
       }
     }));
+    this.decorationTypes.set("task_checked", vscode2.window.createTextEditorDecorationType({
+      before: {
+        contentText: "\u2611",
+        color: new vscode2.ThemeColor("symbolIcon.booleanForeground"),
+        textDecoration: "none; display: inline-block; vertical-align: middle; margin-right: 0.5em; font-size: 1.2em;"
+      }
+    }));
+    this.decorationTypes.set("task_unchecked", vscode2.window.createTextEditorDecorationType({
+      before: {
+        contentText: "\u2610",
+        color: new vscode2.ThemeColor("editor.foreground"),
+        textDecoration: "none; display: inline-block; vertical-align: middle; margin-right: 0.5em; font-size: 1.2em;"
+      }
+    }));
     this.decorationTypes.set("heading1", vscode2.window.createTextEditorDecorationType({
       fontWeight: "bold",
       color: new vscode2.ThemeColor("symbolIcon.classForeground"),
@@ -12394,8 +12391,7 @@ var DecorationManager = class {
   getDynamicTableCellDecoration(diff, align, empty2, isHeader) {
     const alg = align || "left";
     const key = `tableCell-d${diff}-${alg}${empty2 ? "-empty" : ""}${isHeader ? "-head" : ""}`;
-    if (this.decorationTypes.has(key))
-      return key;
+    if (this.decorationTypes.has(key)) return key;
     const half = alg === "center" ? Math.floor(diff / 2) : 0;
     const leftPad = 2 + (alg === "right" ? diff : alg === "center" ? half : 0);
     const rightPad = 2 + (alg === "right" ? 0 : alg === "center" ? diff - half : diff);
@@ -12415,8 +12411,7 @@ var DecorationManager = class {
   }
   getDynamicTableHeaderRowDecoration(width) {
     const key = `tableHeaderRow-w${width}`;
-    if (this.decorationTypes.has(key))
-      return key;
+    if (this.decorationTypes.has(key)) return key;
     this.decorationTypes.set(key, vscode2.window.createTextEditorDecorationType({
       isWholeLine: true,
       textDecoration: "none; font-size: 0px !important; letter-spacing: -1ch !important;",
@@ -12430,8 +12425,7 @@ var DecorationManager = class {
   }
   getDynamicTableRowDecoration(width) {
     const key = `tableRow-w${width}`;
-    if (this.decorationTypes.has(key))
-      return key;
+    if (this.decorationTypes.has(key)) return key;
     this.decorationTypes.set(key, vscode2.window.createTextEditorDecorationType({
       isWholeLine: true,
       before: {
@@ -12686,8 +12680,13 @@ function activate(context) {
       updateView(e.textEditor);
     })
   );
-  const initialEnabled = vscode4.workspace.getConfiguration().get("obsidianMdInline.hideSyntaxMarkers") ?? true;
+  const config = vscode4.workspace.getConfiguration();
+  const defaultMode = config.get("obsidianMdInline.defaultViewMode") ?? "rendered";
+  const initialEnabled = config.get("obsidianMdInline.hideSyntaxMarkers") ?? defaultMode === "rendered";
   vscode4.commands.executeCommand("setContext", "obsidianMdInline.decorationsEnabled", initialEnabled);
+  if (config.get("obsidianMdInline.hideSyntaxMarkers") === void 0) {
+    config.update("obsidianMdInline.hideSyntaxMarkers", initialEnabled, vscode4.ConfigurationTarget.Global);
+  }
   if (vscode4.window.activeTextEditor) {
     updateAll(vscode4.window.activeTextEditor);
   }

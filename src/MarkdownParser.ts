@@ -459,7 +459,7 @@ export class MarkdownParser {
             if (activeEnd === -1 || activeEnd > end) activeEnd = end;
 
             pushRange(markerStart, i, 'hide', { blockId, activeRangeStart: start, activeRangeEnd: activeEnd });
-            
+
             // Handle Task Lists
             if (node.checked !== null && node.checked !== undefined) {
                 const checked = node.checked;
@@ -469,10 +469,10 @@ export class MarkdownParser {
                     const checkboxStart = i;
                     const checkboxEnd = i + checkboxMatch[0].length;
                     const type = checked ? 'task_checked' : 'task_unchecked';
-                    
+
                     pushRange(checkboxStart, checkboxEnd, 'hide', { blockId, activeRangeStart: start, activeRangeEnd: activeEnd });
                     pushRange(checkboxStart, checkboxStart, type, { blockId });
-                    
+
                     // Update i to skip the checkbox
                     i = checkboxEnd;
                     while (i < end && (text[i] === ' ' || text[i] === '\t')) { i++; }

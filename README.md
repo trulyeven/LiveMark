@@ -44,8 +44,8 @@ You can customize your experience in the settings:
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `obsidianMdInline.hideSyntaxMarkers` | `boolean` | `true` | Hide markdown syntax markers when not actively editing the line. |
-| `obsidianMdInline.defaultViewMode` | `enum` | `"rendered"` | Default view mode when opening a file (`rendered` or `raw`). |
+| `livemark.hideSyntaxMarkers` | `boolean` | `true` | Hide markdown syntax markers when not actively editing the line. |
+| `livemark.defaultViewMode` | `enum` | `"rendered"` | Default view mode when opening a file (`rendered` or `raw`). |
 
 ---
 
