@@ -2,14 +2,46 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import { visitParents } from 'unist-util-visit-parents';
-import type { Root, Node, Strong, Emphasis, Heading, InlineCode, Delete, Code, Link, Image, Table, TableRow, TableCell, ListItem, Blockquote, Paragraph } from 'mdast';
+import type { Root, Node, Heading, Code, Image, Table, ListItem, Blockquote, Paragraph, Nodes } from 'mdast';
 
-export type DecorationType = 'hide' | 'bold' | 'italic' | 'strikethrough' | 'code' | 'codeBlock' |
-    'heading1' | 'heading2' | 'heading3' | 'heading4' | 'heading5' | 'heading6' |
-    'tableRow' | 'tableHeaderRow' | 'tableCell' | 'link' | 'image' | 'hr' |
-    'blockquote_bg' | 'blockquote_marker' |
-    'ul_bullet_1' | 'ul_bullet_2' | 'ul_bullet_3' | 'ul_bullet_4' |
-    'task_checked' | 'task_unchecked';
+export type CustomNodeType = string & {};
+
+// The combined type of all mdast node types + custom types
+export type NodeType = Nodes['type'] | CustomNodeType;
+
+
+/**
+ * List of fixed decoration types for easy access and autocomplete.
+ */
+export const DecorationType = {
+    Hide: 'hide',
+    Bold: 'bold',
+    Italic: 'italic',
+    Strikethrough: 'strikethrough',
+    Code: 'code',
+    CodeBlock: 'codeBlock',
+    Link: 'link',
+    Image: 'image',
+    Hr: 'hr',
+    TaskChecked: 'task_checked',
+    TaskUnchecked: 'task_unchecked',
+    TableRow: 'tableRow',
+    TableHeaderRow: 'tableHeaderRow',
+    TableCell: 'tableCell',
+    BlockquoteBg: 'blockquote_bg',
+    BlockquoteMarker: 'blockquote_marker',
+} as const;
+
+/**
+ * Combined type for all possible decoration values, including dynamic patterns.
+ */
+export type DecorationType =
+    (typeof DecorationType)[keyof typeof DecorationType] |
+    `heading${1 | 2 | 3 | 4 | 5 | 6}` |
+    `ul_bullet_${1 | 2 | 3 | 4}` |
+    `tableCell-d${number}-${string}` |
+    `tableHeaderRow-w${number}` |
+    `tableRow-w${number}`;
 
 export interface DecorationRange {
     startPos: number;
@@ -19,24 +51,25 @@ export interface DecorationRange {
     endLine: number;
     endCol: number;
     type: DecorationType;
-    metadata?: any;
+    metadata?: Record<string, unknown>;
     blockId?: string;
     activeRangeStart?: number;
     activeRangeEnd?: number;
 }
 
 type PushRangeFn = (start: number, end: number, type: DecorationType,
-    opts?: { metadata?: any, blockId?: string, activeRangeStart?: number, activeRangeEnd?: number }) => void;
+    opts?: { metadata?: Record<string, unknown>, blockId?: string, activeRangeStart?: number, activeRangeEnd?: number }) => void;
 
 /**
  * MarkdownParser handles parsing Markdown text into a set of decoration ranges.
  * It uses unified/remark to build an AST and then visits nodes to apply styles
  */
 export class MarkdownParser {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private processor: any;
     private lastText: string = '';
     private lastRanges: DecorationRange[] = [];
-    private handlers: Record<string, (node: any, ancestors: Node[], text: string, pushRange: PushRangeFn) => void>;
+    private handlers: Partial<Record<NodeType, (node: Node, ancestors: Node[], text: string, pushRange: PushRangeFn) => void>>;
 
     /**
      * Initialize the unified processor with remark-parse and remark-gfm.
@@ -48,18 +81,18 @@ export class MarkdownParser {
             .use(remarkGfm);
 
         this.handlers = {
-            'strong': (node, _, text, push) => this.processBold(text, push, node.position.start.offset, node.position.end.offset),
-            'emphasis': (node, _, text, push) => this.processItalic(text, push, node.position.start.offset, node.position.end.offset),
-            'delete': (node, _, text, push) => this.processStrikethrough(text, push, node.position.start.offset, node.position.end.offset),
-            'heading': (node, _, text, push) => this.processHeading(node as Heading, text, push, node.position.start.offset, node.position.end.offset),
-            'link': (node, _, text, push) => this.processLink(text, push, node.position.start.offset, node.position.end.offset),
-            'image': (node, ancestors, text, push) => this.processImage(node as Image, text, push, node.position.start.offset, node.position.end.offset, ancestors),
-            'inlineCode': (node, _, text, push) => this.processInlineCode(text, push, node.position.start.offset, node.position.end.offset),
-            'code': (node, _, text, push) => this.processCodeBlock(node as Code, text, push, node.position.start.offset, node.position.end.offset),
-            'table': (node, _, text, push) => this.processTable(node as Table, text, push, node.position.start.offset, node.position.end.offset),
-            'listItem': (node, ancestors, text, push) => this.processListItem(node as ListItem, text, ancestors, push, node.position.start.offset, node.position.end.offset),
-            'blockquote': (node, ancestors, text, push) => this.processBlockquote(text, push, node.position.start.offset, node.position.end.offset, ancestors),
-            'thematicBreak': (node, _, __, push) => this.processHR(push, node.position.start.offset, node.position.end.offset)
+            'strong': (node, _, text, push) => this.processBold(text, push, node.position!.start.offset!, node.position!.end.offset!),
+            'emphasis': (node, _, text, push) => this.processItalic(text, push, node.position!.start.offset!, node.position!.end.offset!),
+            'delete': (node, _, text, push) => this.processStrikethrough(text, push, node.position!.start.offset!, node.position!.end.offset!),
+            'heading': (node, _, text, push) => this.processHeading(node as Heading, text, push, node.position!.start.offset!, node.position!.end.offset!),
+            'link': (node, _, text, push) => this.processLink(text, push, node.position!.start.offset!, node.position!.end.offset!),
+            'image': (node, ancestors, text, push) => this.processImage(node as Image, text, push, node.position!.start.offset!, node.position!.end.offset!, ancestors),
+            'inlineCode': (node, _, text, push) => this.processInlineCode(text, push, node.position!.start.offset!, node.position!.end.offset!),
+            'code': (node, _, text, push) => this.processCodeBlock(node as Code, text, push, node.position!.start.offset!, node.position!.end.offset!),
+            'table': (node, _, text, push) => this.processTable(node as Table, text, push, node.position!.start.offset!, node.position!.end.offset!),
+            'listItem': (node, ancestors, text, push) => this.processListItem(node as ListItem, text, ancestors, push, node.position!.start.offset!, node.position!.end.offset!),
+            'blockquote': (node, ancestors, text, push) => this.processBlockquote(text, push, node.position!.start.offset!, node.position!.end.offset!, ancestors),
+            'thematicBreak': (node, _, __, push) => this.processHR(push, node.position!.start.offset!, node.position!.end.offset!)
         };
     }
 
@@ -163,72 +196,67 @@ export class MarkdownParser {
 
     /**
      * Process bold text (e.g., **text** or __text__).
-     * Hides the markers and applies the 'bold' decoration to the content.
      */
     private processBold(text: string, pushRange: PushRangeFn, start: number, end: number) {
         // Strong is always 2 characters (** or __).
         // If it's ***, AST treats it as Strong(**) + Emphasis(*) inside.
-        pushRange(start, start + 2, 'hide', { activeRangeStart: start, activeRangeEnd: end });
-        pushRange(start + 2, end - 2, 'bold', { activeRangeStart: start, activeRangeEnd: end });
-        pushRange(end - 2, end, 'hide', { activeRangeStart: start, activeRangeEnd: end });
+        pushRange(start, start + 2, DecorationType.Hide, { activeRangeStart: start, activeRangeEnd: end });
+        pushRange(start + 2, end - 2, DecorationType.Bold, { activeRangeStart: start, activeRangeEnd: end });
+        pushRange(end - 2, end, DecorationType.Hide, { activeRangeStart: start, activeRangeEnd: end });
     }
 
     /**
      * Process italic text (e.g., *text* or _text_).
-     * Hides the markers and applies the 'italic' decoration to the content.
      */
     private processItalic(text: string, pushRange: PushRangeFn, start: number, end: number) {
         // Emphasis is always 1 character (* or _).
-        pushRange(start, start + 1, 'hide', { activeRangeStart: start, activeRangeEnd: end });
-        pushRange(start + 1, end - 1, 'italic', { activeRangeStart: start, activeRangeEnd: end });
-        pushRange(end - 1, end, 'hide', { activeRangeStart: start, activeRangeEnd: end });
+        pushRange(start, start + 1, DecorationType.Hide, { activeRangeStart: start, activeRangeEnd: end });
+        pushRange(start + 1, end - 1, DecorationType.Italic, { activeRangeStart: start, activeRangeEnd: end });
+        pushRange(end - 1, end, DecorationType.Hide, { activeRangeStart: start, activeRangeEnd: end });
     }
 
     /**
      * Process strikethrough text (e.g., ~~text~~).
-     * Hides the markers and applies the 'strikethrough' decoration.
      */
     private processStrikethrough(text: string, pushRange: PushRangeFn, start: number, end: number) {
-        pushRange(start, start + 2, 'hide', { activeRangeStart: start, activeRangeEnd: end });
-        pushRange(start + 2, end - 2, 'strikethrough', { activeRangeStart: start, activeRangeEnd: end });
-        pushRange(end - 2, end, 'hide', { activeRangeStart: start, activeRangeEnd: end });
+        pushRange(start, start + 2, DecorationType.Hide, { activeRangeStart: start, activeRangeEnd: end });
+        pushRange(start + 2, end - 2, DecorationType.Strikethrough, { activeRangeStart: start, activeRangeEnd: end });
+        pushRange(end - 2, end, DecorationType.Hide, { activeRangeStart: start, activeRangeEnd: end });
     }
 
     /**
-     * Process Markdown headings (# H1, ## H2, etc.).
-     * Hides the marker part (e.g., '### ') and applies a heading-specific decoration.
+     * Process Markdown headings (# H1, ## H2, ...).
      */
     private processHeading(heading: Heading, text: string, pushRange: PushRangeFn, start: number, end: number) {
         const level = heading.depth;
-        const headingType = `heading${level}` as DecorationType;
+        // const headingType = `heading${level as 1 | 2 | 3 | 4 | 5 | 6}`;
         let markerEnd = start + level;
         while (markerEnd < end && (text[markerEnd] === ' ' || text[markerEnd] === '\t')) {
             markerEnd++;
         }
-        pushRange(start, markerEnd, 'hide', { activeRangeStart: start, activeRangeEnd: end });
+        pushRange(start, markerEnd, DecorationType.Hide, { activeRangeStart: start, activeRangeEnd: end });
         if (markerEnd < end) {
+            const headingType: `heading${1 | 2 | 3 | 4 | 5 | 6}` = `heading${level as 1 | 2 | 3 | 4 | 5 | 6}`;
             pushRange(markerEnd, end, headingType, { activeRangeStart: start, activeRangeEnd: end });
         }
     }
 
     /**
      * Process Markdown links [label](url).
-     * Hides the brackets and URL part, styling only the label.
      */
     private processLink(text: string, pushRange: PushRangeFn, start: number, end: number) {
         const raw = text.substring(start, end);
         const closingBracketIdx = raw.lastIndexOf('](');
         if (closingBracketIdx !== -1) {
             const urlPart = raw.substring(closingBracketIdx + 2, raw.length - 1);
-            pushRange(start, start + 1, 'hide', { activeRangeStart: start, activeRangeEnd: end });
-            pushRange(start + 1, start + closingBracketIdx, 'link', { metadata: { url: urlPart }, activeRangeStart: start, activeRangeEnd: end });
-            pushRange(start + closingBracketIdx, end, 'hide', { activeRangeStart: start, activeRangeEnd: end });
+            pushRange(start, start + 1, DecorationType.Hide, { activeRangeStart: start, activeRangeEnd: end });
+            pushRange(start + 1, start + closingBracketIdx, DecorationType.Link, { metadata: { url: urlPart }, activeRangeStart: start, activeRangeEnd: end });
+            pushRange(start + closingBracketIdx, end, DecorationType.Hide, { activeRangeStart: start, activeRangeEnd: end });
         }
     }
 
     /**
      * Process Markdown images ![alt](url).
-     * Provides metadata for the decorator to render an image preview or anchor.
      */
     private processImage(node: Image, text: string, pushRange: PushRangeFn, start: number, end: number, ancestors: Node[]) {
         const url = node.url;
@@ -238,17 +266,11 @@ export class MarkdownParser {
         const metadata = { url, alt, isBlock };
 
         // Mark the entire markup as 'image' to provide a large hover surface area
-        pushRange(start, end, 'image', { metadata, activeRangeStart: start, activeRangeEnd: end });
+        pushRange(start, end, DecorationType.Image, { metadata, activeRangeStart: start, activeRangeEnd: end });
     }
-
-
-    // pushRange(start, start + 1, 'hide', { activeRangeStart: start, activeRangeEnd: end });
-    // pushRange(start + 1, end - 1, 'code', { activeRangeStart: start, activeRangeEnd: end });
-    // pushRange(end - 1, end, 'hide', { activeRangeStart: start, activeRangeEnd: end });
 
     /**
      * Process inline code (e.g., `code`).
-     * Hides backticks and applies the 'code' background decoration.
      */
     private processInlineCode(text: string, pushRange: PushRangeFn, start: number, end: number) {
         let openLen = 0;
@@ -261,30 +283,29 @@ export class MarkdownParser {
         }
 
         if (openLen > 0 && closeLen > 0) {
-            pushRange(start, start + openLen, 'hide', { activeRangeStart: start, activeRangeEnd: end });
-            pushRange(end - closeLen, end, 'hide', { activeRangeStart: start, activeRangeEnd: end });
+            pushRange(start, start + openLen, DecorationType.Hide, { activeRangeStart: start, activeRangeEnd: end });
+            pushRange(end - closeLen, end, DecorationType.Hide, { activeRangeStart: start, activeRangeEnd: end });
             // Only apply 'code' background to the content inside the markers
-            pushRange(start + openLen, end - closeLen, 'code', { activeRangeStart: start, activeRangeEnd: end });
+            pushRange(start + openLen, end - closeLen, DecorationType.Code, { activeRangeStart: start, activeRangeEnd: end });
         } else {
-            pushRange(start, end, 'code', { activeRangeStart: start, activeRangeEnd: end });
+            pushRange(start, end, DecorationType.Code, { activeRangeStart: start, activeRangeEnd: end });
         }
     }
 
     /**
      * Process fenced code blocks (```lang ... ```).
-     * Hides the start/end fences and applies 'codeBlock' styling to the whole range.
      */
     private processCodeBlock(node: Code, text: string, pushRange: PushRangeFn, start: number, end: number) {
         const blockId = `code-${start}`;
         const firstNewline = text.indexOf('\n', start);
         if (firstNewline !== -1 && firstNewline < end) {
-            pushRange(start, firstNewline + 1, 'hide', { blockId });
+            pushRange(start, firstNewline + 1, DecorationType.Hide, { blockId });
             const lastNewline = text.lastIndexOf('\n', end - 1);
             if (lastNewline !== -1 && lastNewline > firstNewline) {
-                pushRange(lastNewline, end, 'hide', { blockId });
+                pushRange(lastNewline, end, DecorationType.Hide, { blockId });
             }
         }
-        pushRange(start, end, 'codeBlock', { blockId });
+        pushRange(start, end, DecorationType.CodeBlock, { blockId });
     }
 
     /**
@@ -303,18 +324,18 @@ export class MarkdownParser {
         };
 
         // Helper: Extract only visible text from AST node to ignore hidden markdown markers
-        const getVisibleText = (node: any): string => {
+        const getVisibleText = (node: Node & { value?: string, children?: Node[] }): string => {
             if (node.type === 'text' || node.type === 'inlineCode') {
                 return node.value || '';
             }
             if (node.children) {
-                return node.children.map(getVisibleText).join('');
+                return node.children.map((child: Node) => getVisibleText(child)).join('');
             }
             return '';
         };
 
         const colWidths: number[] = [];
-        const visibleTexts = new Map<any, string>();
+        const visibleTexts = new Map<Node, string>();
 
         node.children.forEach(row => {
             row.children.forEach((cell, i) => {
@@ -333,7 +354,7 @@ export class MarkdownParser {
             // Markdown Separator Line
             if (sepLine.trim().match(/^\|?(\s*:?-+:?\s*\|?)+$/)) {
                 const visualEnd = secondNewlineIdx !== -1 ? secondNewlineIdx : sepEnd;
-                pushRange(firstNewlineIdx + 1, visualEnd, 'tableHeaderRow', {
+                pushRange(firstNewlineIdx + 1, visualEnd, DecorationType.TableHeaderRow, {
                     blockId,
                     metadata: { totalWidth: totalTableWidth },
                     activeRangeStart: start,
@@ -361,7 +382,7 @@ export class MarkdownParser {
                 if (rowIndex > 0) {
                     const nextRow = node.children[rowIndex + 1];
                     if (nextRow && nextRow.position?.start?.offset !== undefined && nextRow.position?.end?.offset !== undefined) {
-                        pushRange(nextRow.position.start.offset, nextRow.position.start.offset, 'tableRow', {
+                        pushRange(nextRow.position.start.offset, nextRow.position.start.offset, DecorationType.TableRow, {
                             blockId,
                             metadata: { totalWidth: totalTableWidth },
                             activeRangeStart: start,
@@ -396,7 +417,7 @@ export class MarkdownParser {
                     if (nonSpaceIdx !== -1) {
                         innerStart = cellStart + nonSpaceIdx;
                         let lastIdx = rawText.length - 1;
-                        while (lastIdx >= 0 && (rawText[lastIdx] === ' ' || rawText[lastIdx] === '\t' || rawText[lastIdx] === '|')) lastIdx--;
+                        while (lastIdx >= 0 && (rawText[lastIdx] === ' ' || rawText[lastIdx] === '\t' || rawText[lastIdx] === '|')) { lastIdx--; }
                         innerEnd = cellStart + lastIdx + 1;
                     } else if (cellEnd > cellStart) {
                         const mid = Math.floor((cellStart + cellEnd) / 2);
@@ -412,13 +433,13 @@ export class MarkdownParser {
                 const diff = Math.max((colWidths[i] || 3) - len, 0);
 
                 if (innerStart > cellStart) {
-                    pushRange(cellStart, innerStart, 'hide', { blockId, activeRangeStart: start, activeRangeEnd: end });
+                    pushRange(cellStart, innerStart, DecorationType.Hide, { blockId, activeRangeStart: start, activeRangeEnd: end });
                 }
                 if (innerEnd < cellEnd) {
-                    pushRange(innerEnd, cellEnd, 'hide', { blockId, activeRangeStart: start, activeRangeEnd: end });
+                    pushRange(innerEnd, cellEnd, DecorationType.Hide, { blockId, activeRangeStart: start, activeRangeEnd: end });
                 }
 
-                pushRange(innerStart, innerEnd, 'tableCell', {
+                pushRange(innerStart, innerEnd, DecorationType.TableCell, {
                     blockId,
                     metadata: { diff, align: node.align?.[i], empty: cell.children.length === 0, isHeader: rowIndex === 0 },
                     activeRangeStart: start,
@@ -429,8 +450,7 @@ export class MarkdownParser {
     }
 
     /**
-     * Process unordered list items.
-     * Replaces the standard marker (-, *, +) with custom bullet decorations.
+     * Process unordered list items. Replaces the standard marker (-, *, +) with custom bullet decorations.
      */
     private processListItem(node: ListItem, text: string, ancestors: Node[], pushRange: PushRangeFn, start: number, end: number) {
         const blockId = `item-${start}`;
@@ -441,7 +461,7 @@ export class MarkdownParser {
             if (ancestors[i].type === 'list') {
                 listDepth++;
                 if (listDepth === 1) {
-                    isOrdered = (ancestors[i] as any).ordered;
+                    isOrdered = !!(ancestors[i] as unknown as Record<string, unknown>).ordered;
                 }
             }
         }
@@ -456,9 +476,9 @@ export class MarkdownParser {
             if (i < end && (text[i] === ' ' || text[i] === '\t')) { i++; }
             // Marker visibility depends on the entire line/item start, but restrict it from bleeding into the next line
             let activeEnd = text.indexOf('\n', markerStart);
-            if (activeEnd === -1 || activeEnd > end) activeEnd = end;
+            if (activeEnd === -1 || activeEnd > end) { activeEnd = end; }
 
-            pushRange(markerStart, i, 'hide', { blockId, activeRangeStart: start, activeRangeEnd: activeEnd });
+            pushRange(markerStart, i, DecorationType.Hide, { blockId, activeRangeStart: start, activeRangeEnd: activeEnd });
 
             // Handle Task Lists
             if (node.checked !== null && node.checked !== undefined) {
@@ -468,9 +488,8 @@ export class MarkdownParser {
                 if (checkboxMatch) {
                     const checkboxStart = i;
                     const checkboxEnd = i + checkboxMatch[0].length;
-                    const type = checked ? 'task_checked' : 'task_unchecked';
-
-                    pushRange(checkboxStart, checkboxEnd, 'hide', { blockId, activeRangeStart: start, activeRangeEnd: activeEnd });
+                    const type = checked ? DecorationType.TaskChecked : DecorationType.TaskUnchecked;
+                    pushRange(checkboxStart, checkboxEnd, DecorationType.Hide, { blockId, activeRangeStart: start, activeRangeEnd: activeEnd });
                     pushRange(checkboxStart, checkboxStart, type, { blockId });
 
                     // Update i to skip the checkbox
@@ -478,8 +497,8 @@ export class MarkdownParser {
                     while (i < end && (text[i] === ' ' || text[i] === '\t')) { i++; }
                 }
             } else {
-                const levelIndex = ((listDepth - 1) % 4) + 1;
-                const bulletType = `ul_bullet_${levelIndex}` as DecorationType;
+                const levelIndex = (((listDepth - 1) % 4) + 1) as 1 | 2 | 3 | 4;
+                const bulletType: `ul_bullet_${1 | 2 | 3 | 4}` = `ul_bullet_${levelIndex}`;
                 pushRange(markerStart, markerStart, bulletType, { blockId });
             }
         }
@@ -487,7 +506,6 @@ export class MarkdownParser {
 
     /**
      * Process blockquotes (> text).
-     * Applies a vertical bar styling to the markers and a background to the content.
      */
     private processBlockquote(text: string, pushRange: PushRangeFn, start: number, end: number, ancestors: Node[]) {
         // Handle nesting by only processing at the root blockquote level to avoid duplicate marker logic
@@ -495,7 +513,7 @@ export class MarkdownParser {
 
         const outerQuote = ancestors.find(a => a.type === 'blockquote') as Blockquote || { position: { start: { offset: start } } };
         const blockId = `quote-${outerQuote.position?.start?.offset ?? start}`;
-        pushRange(start, end, 'blockquote_bg', { blockId });
+        pushRange(start, end, DecorationType.BlockquoteBg, { blockId });
 
         let currentOffset = start;
         const subText = text.substring(start, end);
@@ -513,18 +531,17 @@ export class MarkdownParser {
 
                 // Hide leading whitespace
                 if (whitespace.length > 0) {
-                    pushRange(currentOffset, currentOffset + whitespace.length, 'hide', { blockId, activeRangeStart: currentOffset, activeRangeEnd: lineEnd });
+                    pushRange(currentOffset, currentOffset + whitespace.length, DecorationType.Hide, { blockId, activeRangeStart: currentOffset, activeRangeEnd: lineEnd });
                 }
-
                 // For each character in the marker part, either hide space or style '>'
                 let markerIndex = 0;
                 for (let j = 0; j < markerPart.length; j++) {
                     const charStart = currentOffset + whitespace.length + j;
                     if (markerPart[j] === ' ' || markerPart[j] === '\t') {
-                        pushRange(charStart, charStart + 1, 'hide', { blockId, activeRangeStart: currentOffset, activeRangeEnd: lineEnd });
+                        pushRange(charStart, charStart + 1, DecorationType.Hide, { blockId, activeRangeStart: currentOffset, activeRangeEnd: lineEnd });
                     } else if (markerPart[j] === '>') {
                         markerIndex++;
-                        pushRange(charStart, charStart + 1, 'blockquote_marker', {
+                        pushRange(charStart, charStart + 1, DecorationType.BlockquoteMarker, {
                             blockId,
                             activeRangeStart: currentOffset,
                             activeRangeEnd: lineEnd,
@@ -539,10 +556,9 @@ export class MarkdownParser {
 
     /**
      * Process horizontal rules (---, ***, etc.).
-     * Hides the marker and renders a custom horizontal line.
      */
     private processHR(pushRange: PushRangeFn, start: number, end: number) {
-        pushRange(start, end, 'hide');
-        pushRange(start, end, 'hr');
+        pushRange(start, end, DecorationType.Hide);
+        pushRange(start, end, DecorationType.Hr);
     }
 }

@@ -10,11 +10,11 @@
 
 # context
 
-*Italic*  Italic  _Italic_  
+*Italic*  Italic  _Italic_
 
-**Bold**  Bold  __Bold__ 
+**Bold**  Bold  __Bold__
 
-***Bold Italic***  Bold Italic  ___Bold Italic___
+***Bold_Italic***  Bold_Italic  ___Bold_Italic___
 
 `Inline` Inline
 
@@ -31,7 +31,7 @@
 
 # Code
 
-`code`
+`code` inline
 
 ```py
 print("Hello, world!")

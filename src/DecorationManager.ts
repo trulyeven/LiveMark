@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
 import { DecorationType } from './MarkdownParser';
 
+
 export class DecorationManager {
-    private decorationTypes: Map<string, vscode.TextEditorDecorationType> = new Map();
+    private decorationTypes: Map<DecorationType, vscode.TextEditorDecorationType> = new Map();
 
     constructor() {
         this.registerDecorations();
@@ -10,7 +11,7 @@ export class DecorationManager {
 
     private registerDecorations() {
         // Hide - using font-size: 0px and transparent color is the reliable way to vanish markers
-        this.decorationTypes.set('hide', vscode.window.createTextEditorDecorationType({
+        this.decorationTypes.set(DecorationType.Hide, vscode.window.createTextEditorDecorationType({
             textDecoration: 'none; font-size: 0px !important; letter-spacing: -1ch !important;',
             before: {
                 contentText: '',
@@ -19,39 +20,39 @@ export class DecorationManager {
         }));
 
         // Formatting
-        this.decorationTypes.set('bold', vscode.window.createTextEditorDecorationType({
+        this.decorationTypes.set(DecorationType.Bold, vscode.window.createTextEditorDecorationType({
             fontWeight: 'bold',
         }));
-        this.decorationTypes.set('italic', vscode.window.createTextEditorDecorationType({
+        this.decorationTypes.set(DecorationType.Italic, vscode.window.createTextEditorDecorationType({
             fontStyle: 'italic'
         }));
-        this.decorationTypes.set('strikethrough', vscode.window.createTextEditorDecorationType({
+        this.decorationTypes.set(DecorationType.Strikethrough, vscode.window.createTextEditorDecorationType({
             textDecoration: 'line-through'
         }));
-        this.decorationTypes.set('code', vscode.window.createTextEditorDecorationType({
+        this.decorationTypes.set(DecorationType.Code, vscode.window.createTextEditorDecorationType({
             backgroundColor: new vscode.ThemeColor('textCodeBlock.background'),
             borderRadius: '2px',
             textDecoration: 'none; display: inline-block !important;' // display: inline-block helps with background visibility
         }));
-        this.decorationTypes.set('codeBlock', vscode.window.createTextEditorDecorationType({
+        this.decorationTypes.set(DecorationType.CodeBlock, vscode.window.createTextEditorDecorationType({
             isWholeLine: true,
             backgroundColor: new vscode.ThemeColor('textCodeBlock.background'),
         }));
-        this.decorationTypes.set('link', vscode.window.createTextEditorDecorationType({
+        this.decorationTypes.set(DecorationType.Link, vscode.window.createTextEditorDecorationType({
             color: new vscode.ThemeColor('textLink.foreground'),
             textDecoration: 'underline'
         }));
-        this.decorationTypes.set('image', vscode.window.createTextEditorDecorationType({
+        this.decorationTypes.set(DecorationType.Image, vscode.window.createTextEditorDecorationType({
             opacity: '0',
             textDecoration: 'none; color: transparent !important; font-size: 0px;',
         }));
 
         // blockquote
-        this.decorationTypes.set('blockquote_bg', vscode.window.createTextEditorDecorationType({
+        this.decorationTypes.set(DecorationType.BlockquoteBg, vscode.window.createTextEditorDecorationType({
             backgroundColor: 'rgba(128, 128, 128, 0.05)',
             isWholeLine: true
         }));
-        this.decorationTypes.set('blockquote_marker', vscode.window.createTextEditorDecorationType({
+        this.decorationTypes.set(DecorationType.BlockquoteMarker, vscode.window.createTextEditorDecorationType({
             textDecoration: 'none; color: transparent !important; display: inline-block; border-left: 6px solid #40a9ff;'
         }));
 
@@ -86,14 +87,14 @@ export class DecorationManager {
         }));
 
         // Tasks
-        this.decorationTypes.set('task_checked', vscode.window.createTextEditorDecorationType({
+        this.decorationTypes.set(DecorationType.TaskChecked, vscode.window.createTextEditorDecorationType({
             before: {
                 contentText: '☑',
                 color: new vscode.ThemeColor('symbolIcon.booleanForeground'),
                 textDecoration: 'none; display: inline-block; vertical-align: middle; margin-right: 0.5em; font-size: 1.2em;'
             }
         }));
-        this.decorationTypes.set('task_unchecked', vscode.window.createTextEditorDecorationType({
+        this.decorationTypes.set(DecorationType.TaskUnchecked, vscode.window.createTextEditorDecorationType({
             before: {
                 contentText: '☐',
                 color: new vscode.ThemeColor('editor.foreground'),
@@ -143,7 +144,7 @@ export class DecorationManager {
         }));
 
         // HR
-        this.decorationTypes.set('hr', vscode.window.createTextEditorDecorationType({
+        this.decorationTypes.set(DecorationType.Hr, vscode.window.createTextEditorDecorationType({
             isWholeLine: true,
             after: {
                 contentText: '',
@@ -152,11 +153,11 @@ export class DecorationManager {
         }));
     }
 
-    public getDynamicTableCellDecoration(diff: number, align?: string, empty?: boolean, isHeader?: boolean): string {
+    public getDynamicTableCellDecoration(diff: number, align?: string, empty?: boolean, isHeader?: boolean): DecorationType {
         const alg = align || 'left';
-        const key = `tableCell-d${diff}-${alg}${empty ? '-empty' : ''}${isHeader ? '-head' : ''}`;
+        const key = `tableCell-d${diff}-${alg}${empty ? '-empty' : ''}${isHeader ? '-head' : ''}` as DecorationType;
 
-        if (this.decorationTypes.has(key)) return key;
+        if (this.decorationTypes.has(key)) { return key; }
 
         const half = alg === 'center' ? Math.floor(diff / 2) : 0;
         const leftPad = 2 + (alg === 'right' ? diff : alg === 'center' ? half : 0);
@@ -182,9 +183,9 @@ export class DecorationManager {
         return key;
     }
 
-    public getDynamicTableHeaderRowDecoration(width: number): string {
-        const key = `tableHeaderRow-w${width}`;
-        if (this.decorationTypes.has(key)) return key;
+    public getDynamicTableHeaderRowDecoration(width: number): DecorationType {
+        const key = `tableHeaderRow-w${width}` as DecorationType;
+        if (this.decorationTypes.has(key)) { return key; }
 
         this.decorationTypes.set(key, vscode.window.createTextEditorDecorationType({
             isWholeLine: true,
@@ -197,9 +198,9 @@ export class DecorationManager {
         return key;
     }
 
-    public getDynamicTableRowDecoration(width: number): string {
-        const key = `tableRow-w${width}`;
-        if (this.decorationTypes.has(key)) return key;
+    public getDynamicTableRowDecoration(width: number): DecorationType {
+        const key = `tableRow-w${width}` as DecorationType;
+        if (this.decorationTypes.has(key)) { return key; }
 
         this.decorationTypes.set(key, vscode.window.createTextEditorDecorationType({
             isWholeLine: true,
@@ -211,7 +212,7 @@ export class DecorationManager {
         return key;
     }
 
-    public getDecorationType(type: string): vscode.TextEditorDecorationType | undefined {
+    public getDecorationType(type: DecorationType): vscode.TextEditorDecorationType | undefined {
         return this.decorationTypes.get(type);
     }
 
@@ -219,7 +220,7 @@ export class DecorationManager {
         return this.decorationTypes.values();
     }
 
-    public getTypes(): IterableIterator<string> {
+    public getTypes(): IterableIterator<DecorationType> {
         return this.decorationTypes.keys();
     }
 

@@ -54,7 +54,7 @@ export class Decorator {
         const selections = editor.selections;
 
         // Grouping logic
-        const categorizedRanges = new Map<string, (vscode.Range | vscode.DecorationOptions)[]>();
+        const categorizedRanges = new Map<DecorationType, (vscode.Range | vscode.DecorationOptions)[]>();
         for (const type of this.decorationManager.getTypes()) {
             categorizedRanges.set(type, []);
         }
@@ -106,32 +106,32 @@ export class Decorator {
                 document.positionAt(range.endPos)
             );
 
-            if (range.type === 'image' && range.metadata?.url) {
+            if (range.type === DecorationType.Image && range.metadata?.url) {
                 this.pushImageDecoration(categorizedRanges, vsRange, range, document);
-            } else if (range.type === 'link' && range.metadata?.url) {
+            } else if (range.type === DecorationType.Link && range.metadata?.url) {
                 this.pushLinkDecoration(categorizedRanges, vsRange, range);
-            } else if (range.type === 'tableCell') {
+            } else if (range.type === DecorationType.TableCell) {
                 const decType = this.decorationManager.getDynamicTableCellDecoration(
-                    range.metadata?.diff || 0,
-                    range.metadata?.align,
-                    range.metadata?.empty,
-                    range.metadata?.isHeader
+                    (range.metadata?.diff as number) || 0,
+                    range.metadata?.align as string | undefined,
+                    range.metadata?.empty as boolean | undefined,
+                    range.metadata?.isHeader as boolean | undefined
                 );
                 if (!categorizedRanges.has(decType)) {
                     categorizedRanges.set(decType, []);
                 }
                 categorizedRanges.get(decType)?.push(vsRange);
-            } else if (range.type === 'tableHeaderRow') {
+            } else if (range.type === DecorationType.TableHeaderRow) {
                 const decType = this.decorationManager.getDynamicTableHeaderRowDecoration(
-                    range.metadata?.totalWidth || 100
+                    (range.metadata?.totalWidth as number) || 100
                 );
                 if (!categorizedRanges.has(decType)) {
                     categorizedRanges.set(decType, []);
                 }
                 categorizedRanges.get(decType)?.push(vsRange);
-            } else if (range.type === 'tableRow') {
+            } else if (range.type === DecorationType.TableRow) {
                 const decType = this.decorationManager.getDynamicTableRowDecoration(
-                    range.metadata?.totalWidth || 100
+                    (range.metadata?.totalWidth as number) || 100
                 );
                 if (!categorizedRanges.has(decType)) {
                     categorizedRanges.set(decType, []);
@@ -146,7 +146,7 @@ export class Decorator {
         for (const [type, typeRanges] of categorizedRanges.entries()) {
             const decorationType = this.decorationManager.getDecorationType(type);
             if (decorationType) {
-                editor.setDecorations(decorationType, typeRanges as any);
+                editor.setDecorations(decorationType, typeRanges as readonly vscode.Range[] | readonly vscode.DecorationOptions[]);
             }
         }
 
@@ -154,15 +154,17 @@ export class Decorator {
     }
 
     private isPersistentType(type: DecorationType): boolean {
-        return ['codeBlock', 'table', 'blockquote_bg', 'hr'].includes(type);
+        // use string cast for 'table' because MarkdownParser doesn't have a 'table' decoration, 
+        // but it might refer to an encompassing type or future integration.
+        return ([DecorationType.CodeBlock, 'table', DecorationType.BlockquoteBg, DecorationType.Hr] as string[]).includes(type);
     }
 
-    private pushImageDecoration(categorized: Map<any, any>, vsRange: vscode.Range, range: DecorationRange, document: vscode.TextDocument) {
-        const url = range.metadata.url;
+    private pushImageDecoration(categorized: Map<DecorationType, (vscode.Range | vscode.DecorationOptions)[]>, vsRange: vscode.Range, range: DecorationRange, document: vscode.TextDocument) {
+        const url = range.metadata!.url as string;
         const imageUri = this.resolveImageUri(document, url);
-        const altText = range.metadata.alt || 'image';
+        const altText = (range.metadata!.alt as string) || 'image';
 
-        categorized.get('image')?.push({
+        categorized.get(DecorationType.Image)?.push({
             range: vsRange,
             renderOptions: {
                 before: {
@@ -172,14 +174,14 @@ export class Decorator {
                     textDecoration: 'none; border-bottom: 1px dotted; font-size: 13px !important;'
                 }
             },
-            hoverMessage: imageUri ? new vscode.MarkdownString(`![preview](${imageUri})\n\n${url}`) : url
+            hoverMessage: imageUri ? new vscode.MarkdownString(`![preview](${imageUri})\n\n${url}`) : (url as unknown as vscode.MarkdownString)
         });
     }
 
-    private pushLinkDecoration(categorized: Map<any, any>, vsRange: vscode.Range, range: DecorationRange) {
-        categorized.get('link')?.push({
+    private pushLinkDecoration(categorized: Map<DecorationType, (vscode.Range | vscode.DecorationOptions)[]>, vsRange: vscode.Range, range: DecorationRange) {
+        categorized.get(DecorationType.Link)?.push({
             range: vsRange,
-            hoverMessage: new vscode.MarkdownString(range.metadata.url)
+            hoverMessage: new vscode.MarkdownString(range.metadata!.url as string)
         });
     }
 
