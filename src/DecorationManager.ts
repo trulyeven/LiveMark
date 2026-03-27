@@ -34,6 +34,18 @@ export class DecorationManager {
             borderRadius: '2px',
             textDecoration: 'none; display: inline-block !important;' // display: inline-block helps with background visibility
         }));
+        this.decorationTypes.set(DecorationType.Underline, vscode.window.createTextEditorDecorationType({
+            textDecoration: 'underline'
+        }));
+        this.decorationTypes.set(DecorationType.Mark, vscode.window.createTextEditorDecorationType({
+            backgroundColor: new vscode.ThemeColor('editor.findMatchHighlightBackground') // Use VS Code default find match highlight style
+        }));
+        this.decorationTypes.set(DecorationType.Superscript, vscode.window.createTextEditorDecorationType({
+            textDecoration: 'none; font-size: 0.8em; vertical-align: super;'
+        }));
+        this.decorationTypes.set(DecorationType.Subscript, vscode.window.createTextEditorDecorationType({
+            textDecoration: 'none; font-size: 0.8em; vertical-align: sub;'
+        }));
         this.decorationTypes.set(DecorationType.CodeBlock, vscode.window.createTextEditorDecorationType({
             isWholeLine: true,
             backgroundColor: new vscode.ThemeColor('textCodeBlock.background'),
@@ -43,7 +55,6 @@ export class DecorationManager {
             textDecoration: 'underline'
         }));
         this.decorationTypes.set(DecorationType.Image, vscode.window.createTextEditorDecorationType({
-            opacity: '0',
             textDecoration: 'none; color: transparent !important; font-size: 0px;',
         }));
 
@@ -149,6 +160,16 @@ export class DecorationManager {
             after: {
                 contentText: '',
                 textDecoration: `none; font-size: 0px; display: inline-block; position: absolute; bottom: 50%; width: 100vw; height: 10%; background-color: #666;`,
+            }
+        }));
+
+        // HTML Br
+        this.decorationTypes.set(DecorationType.HtmlBr, vscode.window.createTextEditorDecorationType({
+            textDecoration: 'none; font-size: 0px !important; letter-spacing: -1ch !important;',
+            after: {
+                contentText: '⏎', // Line break symbol
+                color: new vscode.ThemeColor('editorLineNumber.foreground'),
+                textDecoration: 'none; display: inline-block; font-size: 1em; vertical-align: baseline; margin-left: 2px;'
             }
         }));
     }

@@ -1,14 +1,14 @@
-# Title
+# Markdown
 
-# H1
-## H2
+## Header
+
 ### H3
 #### H4
 ##### H5
 ###### H6
 
 
-# context
+## context
 
 *Italic*  Italic  _Italic_
 
@@ -19,17 +19,17 @@
 `Inline` Inline
 
 
-# Links
+## Links
 
 [Google](https://www.google.com)
 
 
-# Images
+## Images
 
 ![Google](https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_120x44dp.png)
 
 
-# Code
+## Code
 
 `code` inline
 
@@ -38,7 +38,7 @@ print("Hello, world!")
 ```
 
 
-# Lists
+## Lists
 
 - list
     - list1
@@ -50,20 +50,31 @@ print("Hello, world!")
 - list
 
 
-# Tables
+## Tables
 
 | Header | Header | Header |
-|--------|--------|--------|
+|:--------|:--------:|:--------|
 | context | Long~~~~~~~~~~~~context | **context** |
-| Cell | Cell | `Cell` |
+| Cell | Cell | `Cell` CellCellCellCellCellCellCellCellCell|
 | *Cell* | [Google](https://www.google.com) | ![Google](https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_120x44dp.png) |
 
-# Quote
+## Quote
 
 > Lorem Ipsum
 
 
-# Check Box
+## Check Box
 
 - [x] task1
 - [ ] task2
+- [x] task3
+
+
+
+# HTML
+
+br <br>
+
+<b>Bold</b> <i>Italic</i> <b><i>Bold_Italic</i></b> <del>Delete</del>
+
+<u>Underline</u> <mark>Mark</mark> <sup>Sup</sup> <sub>Sub</sub>

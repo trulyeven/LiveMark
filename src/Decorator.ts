@@ -9,6 +9,10 @@ export class Decorator {
     private enabled: boolean = true;
     private perfStatusBar: vscode.StatusBarItem;
 
+    // Performance Optimization Caches
+    private imageRenderCache = new Map<string, vscode.DecorationOptions['renderOptions']>();
+    private hoverCache = new Map<string, vscode.MarkdownString | string>();
+
     constructor(parseManager: ParserManager) {
         this.parseManager = parseManager;
         this.decorationManager = new DecorationManager();
@@ -65,10 +69,18 @@ export class Decorator {
             end: document.offsetAt(sel.end)
         }));
 
+        let minSelStart = Number.MAX_SAFE_INTEGER;
+        let maxSelEnd = -1;
+        for (const sel of selOffsets) {
+            if (sel.start < minSelStart) { minSelStart = sel.start; }
+            if (sel.end > maxSelEnd) { maxSelEnd = sel.end; }
+        }
+
         // Active range check helper (Optimized for performance: 0 allocations inside loop)
         const isRangeActive = (range: DecorationRange): boolean => {
             const rangeStart = range.activeRangeStart ?? range.startPos;
             const rangeEnd = range.activeRangeEnd ?? range.endPos;
+            if (rangeEnd < minSelStart || rangeStart > maxSelEnd) { return false; } // Early Exit
             for (let i = 0; i < selOffsets.length; i++) {
                 if (selOffsets[i].start <= rangeEnd && selOffsets[i].end >= rangeStart) {
                     return true;
@@ -76,6 +88,14 @@ export class Decorator {
             }
             return false;
         };
+
+        // Pre-calculate Viewport Bounds for 100x faster viewport check
+        let minVisibleLine = Number.MAX_SAFE_INTEGER;
+        let maxVisibleLine = -1;
+        for (const vr of visibleRanges) {
+            if (vr.start.line - 50 < minVisibleLine) { minVisibleLine = vr.start.line - 50; }
+            if (vr.end.line + 50 > maxVisibleLine) { maxVisibleLine = vr.end.line + 50; }
+        }
 
         const activeBlockIds = new Set<string>();
         for (const range of ranges) {
@@ -85,9 +105,7 @@ export class Decorator {
         }
         for (const range of ranges) {
             // Viewport Optimization
-            const isVisible = visibleRanges.some(vr => {
-                return (range.startLine >= vr.start.line - 50 && range.startLine <= vr.end.line + 50);
-            });
+            const isVisible = range.endLine >= minVisibleLine && range.startLine <= maxVisibleLine;
 
             if (!isVisible && !this.isPersistentType(range.type)) {
                 continue;
@@ -161,20 +179,38 @@ export class Decorator {
 
     private pushImageDecoration(categorized: Map<DecorationType, (vscode.Range | vscode.DecorationOptions)[]>, vsRange: vscode.Range, range: DecorationRange, document: vscode.TextDocument) {
         const url = range.metadata!.url as string;
-        const imageUri = this.resolveImageUri(document, url);
-        const altText = (range.metadata!.alt as string) || 'image';
+
+        // Cache Render Options 
+        let cachedRenderOpts = this.imageRenderCache.get(url);
+        if (!cachedRenderOpts) {
+            const altText = (range.metadata!.alt as string) || 'image';
+
+            cachedRenderOpts = {
+                before: {
+                    contentText: '🖼️',
+                    color: new vscode.ThemeColor('textLink.foreground'),
+                },
+                after: {
+                    contentText: `${altText}◩`,
+                    color: new vscode.ThemeColor('descriptionForeground'),
+                    textDecoration: 'none; border-bottom: 1px dotted; font-size: 0.85em; vertical-align: middle;'
+                }
+            };
+            this.imageRenderCache.set(url, cachedRenderOpts);
+        }
+
+        // Cache Hover Message
+        let hoverMsg = this.hoverCache.get(url);
+        if (hoverMsg === undefined) {
+            const imageUri = this.resolveImageUri(document, url);
+            hoverMsg = imageUri ? new vscode.MarkdownString(`![preview](${imageUri})\n\n${url}`) : url;
+            this.hoverCache.set(url, hoverMsg);
+        }
 
         categorized.get(DecorationType.Image)?.push({
             range: vsRange,
-            renderOptions: {
-                before: {
-                    contentText: `🖼️${altText}`,
-                    color: new vscode.ThemeColor('editor.foreground'),
-                    margin: '0 4px',
-                    textDecoration: 'none; border-bottom: 1px dotted; font-size: 13px !important;'
-                }
-            },
-            hoverMessage: imageUri ? new vscode.MarkdownString(`![preview](${imageUri})\n\n${url}`) : (url as unknown as vscode.MarkdownString)
+            renderOptions: cachedRenderOpts,
+            hoverMessage: hoverMsg as vscode.MarkdownString
         });
     }
 
@@ -212,5 +248,7 @@ export class Decorator {
     public dispose() {
         this.decorationManager.dispose();
         this.perfStatusBar.dispose();
+        this.imageRenderCache.clear();
+        this.hoverCache.clear();
     }
 }

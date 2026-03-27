@@ -10,7 +10,7 @@
             "ES2022",
             "DOM"
         ],
-        "sourceMap": true,
+        "noEmit": true,
         "rootDir": ".",
         "strict": true,
         "esModuleInterop": true,

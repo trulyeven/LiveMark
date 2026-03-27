@@ -11708,11 +11708,36 @@ function remarkGfm(options) {
 }
 
 // src/MarkdownParser.ts
+var DecorationType = {
+  Hide: "hide",
+  Bold: "bold",
+  Italic: "italic",
+  Strikethrough: "strikethrough",
+  Code: "code",
+  CodeBlock: "codeBlock",
+  Link: "link",
+  Image: "image",
+  Hr: "hr",
+  TaskChecked: "task_checked",
+  TaskUnchecked: "task_unchecked",
+  TableRow: "tableRow",
+  TableHeaderRow: "tableHeaderRow",
+  TableCell: "tableCell",
+  BlockquoteBg: "blockquote_bg",
+  BlockquoteMarker: "blockquote_marker",
+  HtmlBr: "htmlBr",
+  Underline: "underline",
+  Mark: "mark",
+  Superscript: "superscript",
+  Subscript: "subscript"
+};
 var MarkdownParser = class {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   processor;
   lastText = "";
   lastRanges = [];
   handlers;
+  openHtmlTags = [];
   /**
    * Initialize the unified processor with remark-parse and remark-gfm.
    * Sets up handlers for various Markdown node types
@@ -11731,7 +11756,8 @@ var MarkdownParser = class {
       "table": (node2, _, text5, push2) => this.processTable(node2, text5, push2, node2.position.start.offset, node2.position.end.offset),
       "listItem": (node2, ancestors, text5, push2) => this.processListItem(node2, text5, ancestors, push2, node2.position.start.offset, node2.position.end.offset),
       "blockquote": (node2, ancestors, text5, push2) => this.processBlockquote(text5, push2, node2.position.start.offset, node2.position.end.offset, ancestors),
-      "thematicBreak": (node2, _, __, push2) => this.processHR(push2, node2.position.start.offset, node2.position.end.offset)
+      "thematicBreak": (node2, _, __, push2) => this.processHR(push2, node2.position.start.offset, node2.position.end.offset),
+      "html": (node2, ancestors, text5, push2) => this.processHtml(node2, text5, push2, ancestors)
     };
   }
   /**
@@ -11745,6 +11771,7 @@ var MarkdownParser = class {
     if (text5 === this.lastText) {
       return this.lastRanges;
     }
+    this.openHtmlTags = [];
     const ranges = [];
     const lineOffsets = [0];
     for (let i = 0; i < text5.length; i++) {
@@ -11807,7 +11834,7 @@ var MarkdownParser = class {
    * Determines a shared blockId for nested inline formatting elements
    */
   getFormattingRootId(node2, ancestors) {
-    const formattingTypes = ["strong", "emphasis", "delete", "link", "inlineCode", "heading", "image"];
+    const formattingTypes = ["strong", "emphasis", "delete", "link", "inlineCode", "heading", "image", "html"];
     if (!formattingTypes.includes(node2.type)) {
       return void 0;
     }
@@ -11826,65 +11853,199 @@ var MarkdownParser = class {
     return void 0;
   }
   /**
+   * Process HTML nodes (e.g., <em>, <strong>, <br>)
+   */
+  processHtml(node2, text5, pushRange, ancestors) {
+    const value = node2.value?.toLowerCase() || "";
+    const start = node2.position.start.offset;
+    const end = node2.position.end.offset;
+    const blockId = this.getFormattingRootId(node2, ancestors);
+    if (value.startsWith("<br>")) {
+      pushRange(start, end, DecorationType.HtmlBr, { blockId, activeRangeStart: start, activeRangeEnd: end });
+    } else if (value.startsWith("<br/>") || value.startsWith("<br />")) {
+      pushRange(start, end, DecorationType.HtmlBr, { blockId, activeRangeStart: start, activeRangeEnd: end });
+    } else if (value === "<em>" || value === "<i>") {
+      this.openHtmlTags.push({ tag: value, startPos: start, endPos: end, blockId });
+    } else if (value === "</em>" || value === "</i>") {
+      const openTag = value === "</em>" ? "<em>" : "<i>";
+      let foundIndex = -1;
+      for (let i = this.openHtmlTags.length - 1; i >= 0; i--) {
+        if (this.openHtmlTags[i].tag === openTag) {
+          foundIndex = i;
+          break;
+        }
+      }
+      if (foundIndex !== -1) {
+        const openNode = this.openHtmlTags[foundIndex];
+        this.openHtmlTags.splice(foundIndex, 1);
+        pushRange(openNode.startPos, openNode.endPos, DecorationType.Hide, { blockId: openNode.blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+        pushRange(start, end, DecorationType.Hide, { blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+        pushRange(openNode.endPos, start, DecorationType.Italic, { activeRangeStart: openNode.startPos, activeRangeEnd: end });
+      }
+    } else if (value === "<strong>" || value === "<b>") {
+      this.openHtmlTags.push({ tag: value, startPos: start, endPos: end, blockId });
+    } else if (value === "</strong>" || value === "</b>") {
+      const openTag = value === "</strong>" ? "<strong>" : "<b>";
+      let foundIndex = -1;
+      for (let i = this.openHtmlTags.length - 1; i >= 0; i--) {
+        if (this.openHtmlTags[i].tag === openTag) {
+          foundIndex = i;
+          break;
+        }
+      }
+      if (foundIndex !== -1) {
+        const openNode = this.openHtmlTags[foundIndex];
+        this.openHtmlTags.splice(foundIndex, 1);
+        pushRange(openNode.startPos, openNode.endPos, DecorationType.Hide, { blockId: openNode.blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+        pushRange(start, end, DecorationType.Hide, { blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+        pushRange(openNode.endPos, start, DecorationType.Bold, { activeRangeStart: openNode.startPos, activeRangeEnd: end });
+      }
+    } else if (value === "<del>" || value === "<s>") {
+      this.openHtmlTags.push({ tag: value, startPos: start, endPos: end, blockId });
+    } else if (value === "</del>" || value === "</s>") {
+      const openTag = value === "</del>" ? "<del>" : "<s>";
+      let foundIndex = -1;
+      for (let i = this.openHtmlTags.length - 1; i >= 0; i--) {
+        if (this.openHtmlTags[i].tag === openTag) {
+          foundIndex = i;
+          break;
+        }
+      }
+      if (foundIndex !== -1) {
+        const openNode = this.openHtmlTags[foundIndex];
+        this.openHtmlTags.splice(foundIndex, 1);
+        pushRange(openNode.startPos, openNode.endPos, DecorationType.Hide, { blockId: openNode.blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+        pushRange(start, end, DecorationType.Hide, { blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+        pushRange(openNode.endPos, start, DecorationType.Strikethrough, { activeRangeStart: openNode.startPos, activeRangeEnd: end });
+      }
+    } else if (value === "<u>") {
+      this.openHtmlTags.push({ tag: value, startPos: start, endPos: end, blockId });
+    } else if (value === "</u>") {
+      const openTag = "<u>";
+      let foundIndex = -1;
+      for (let i = this.openHtmlTags.length - 1; i >= 0; i--) {
+        if (this.openHtmlTags[i].tag === openTag) {
+          foundIndex = i;
+          break;
+        }
+      }
+      if (foundIndex !== -1) {
+        const openNode = this.openHtmlTags[foundIndex];
+        this.openHtmlTags.splice(foundIndex, 1);
+        pushRange(openNode.startPos, openNode.endPos, DecorationType.Hide, { blockId: openNode.blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+        pushRange(start, end, DecorationType.Hide, { blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+        pushRange(openNode.endPos, start, DecorationType.Underline, { activeRangeStart: openNode.startPos, activeRangeEnd: end });
+      }
+    } else if (value === "<mark>") {
+      this.openHtmlTags.push({ tag: value, startPos: start, endPos: end, blockId });
+    } else if (value === "</mark>") {
+      const openTag = "<mark>";
+      let foundIndex = -1;
+      for (let i = this.openHtmlTags.length - 1; i >= 0; i--) {
+        if (this.openHtmlTags[i].tag === openTag) {
+          foundIndex = i;
+          break;
+        }
+      }
+      if (foundIndex !== -1) {
+        const openNode = this.openHtmlTags[foundIndex];
+        this.openHtmlTags.splice(foundIndex, 1);
+        pushRange(openNode.startPos, openNode.endPos, DecorationType.Hide, { blockId: openNode.blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+        pushRange(start, end, DecorationType.Hide, { blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+        pushRange(openNode.endPos, start, DecorationType.Mark, { activeRangeStart: openNode.startPos, activeRangeEnd: end });
+      }
+    } else if (value === "<sup>") {
+      this.openHtmlTags.push({ tag: value, startPos: start, endPos: end, blockId });
+    } else if (value === "</sup>") {
+      const openTag = "<sup>";
+      let foundIndex = -1;
+      for (let i = this.openHtmlTags.length - 1; i >= 0; i--) {
+        if (this.openHtmlTags[i].tag === openTag) {
+          foundIndex = i;
+          break;
+        }
+      }
+      if (foundIndex !== -1) {
+        const openNode = this.openHtmlTags[foundIndex];
+        this.openHtmlTags.splice(foundIndex, 1);
+        pushRange(openNode.startPos, openNode.endPos, DecorationType.Hide, { blockId: openNode.blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+        pushRange(start, end, DecorationType.Hide, { blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+        pushRange(openNode.endPos, start, DecorationType.Superscript, { activeRangeStart: openNode.startPos, activeRangeEnd: end });
+      }
+    } else if (value === "<sub>") {
+      this.openHtmlTags.push({ tag: value, startPos: start, endPos: end, blockId });
+    } else if (value === "</sub>") {
+      const openTag = "<sub>";
+      let foundIndex = -1;
+      for (let i = this.openHtmlTags.length - 1; i >= 0; i--) {
+        if (this.openHtmlTags[i].tag === openTag) {
+          foundIndex = i;
+          break;
+        }
+      }
+      if (foundIndex !== -1) {
+        const openNode = this.openHtmlTags[foundIndex];
+        this.openHtmlTags.splice(foundIndex, 1);
+        pushRange(openNode.startPos, openNode.endPos, DecorationType.Hide, { blockId: openNode.blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+        pushRange(start, end, DecorationType.Hide, { blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+        pushRange(openNode.endPos, start, DecorationType.Subscript, { activeRangeStart: openNode.startPos, activeRangeEnd: end });
+      }
+    }
+  }
+  /**
    * Process bold text (e.g., **text** or __text__).
-   * Hides the markers and applies the 'bold' decoration to the content.
    */
   processBold(text5, pushRange, start, end) {
-    pushRange(start, start + 2, "hide", { activeRangeStart: start, activeRangeEnd: end });
-    pushRange(start + 2, end - 2, "bold", { activeRangeStart: start, activeRangeEnd: end });
-    pushRange(end - 2, end, "hide", { activeRangeStart: start, activeRangeEnd: end });
+    pushRange(start, start + 2, DecorationType.Hide, { activeRangeStart: start, activeRangeEnd: end });
+    pushRange(start + 2, end - 2, DecorationType.Bold, { activeRangeStart: start, activeRangeEnd: end });
+    pushRange(end - 2, end, DecorationType.Hide, { activeRangeStart: start, activeRangeEnd: end });
   }
   /**
    * Process italic text (e.g., *text* or _text_).
-   * Hides the markers and applies the 'italic' decoration to the content.
    */
   processItalic(text5, pushRange, start, end) {
-    pushRange(start, start + 1, "hide", { activeRangeStart: start, activeRangeEnd: end });
-    pushRange(start + 1, end - 1, "italic", { activeRangeStart: start, activeRangeEnd: end });
-    pushRange(end - 1, end, "hide", { activeRangeStart: start, activeRangeEnd: end });
+    pushRange(start, start + 1, DecorationType.Hide, { activeRangeStart: start, activeRangeEnd: end });
+    pushRange(start + 1, end - 1, DecorationType.Italic, { activeRangeStart: start, activeRangeEnd: end });
+    pushRange(end - 1, end, DecorationType.Hide, { activeRangeStart: start, activeRangeEnd: end });
   }
   /**
    * Process strikethrough text (e.g., ~~text~~).
-   * Hides the markers and applies the 'strikethrough' decoration.
    */
   processStrikethrough(text5, pushRange, start, end) {
-    pushRange(start, start + 2, "hide", { activeRangeStart: start, activeRangeEnd: end });
-    pushRange(start + 2, end - 2, "strikethrough", { activeRangeStart: start, activeRangeEnd: end });
-    pushRange(end - 2, end, "hide", { activeRangeStart: start, activeRangeEnd: end });
+    pushRange(start, start + 2, DecorationType.Hide, { activeRangeStart: start, activeRangeEnd: end });
+    pushRange(start + 2, end - 2, DecorationType.Strikethrough, { activeRangeStart: start, activeRangeEnd: end });
+    pushRange(end - 2, end, DecorationType.Hide, { activeRangeStart: start, activeRangeEnd: end });
   }
   /**
-   * Process Markdown headings (# H1, ## H2, etc.).
-   * Hides the marker part (e.g., '### ') and applies a heading-specific decoration.
+   * Process Markdown headings (# H1, ## H2, ...).
    */
   processHeading(heading2, text5, pushRange, start, end) {
     const level = heading2.depth;
-    const headingType = `heading${level}`;
     let markerEnd = start + level;
     while (markerEnd < end && (text5[markerEnd] === " " || text5[markerEnd] === "	")) {
       markerEnd++;
     }
-    pushRange(start, markerEnd, "hide", { activeRangeStart: start, activeRangeEnd: end });
+    pushRange(start, markerEnd, DecorationType.Hide, { activeRangeStart: start, activeRangeEnd: end });
     if (markerEnd < end) {
+      const headingType = `heading${level}`;
       pushRange(markerEnd, end, headingType, { activeRangeStart: start, activeRangeEnd: end });
     }
   }
   /**
    * Process Markdown links [label](url).
-   * Hides the brackets and URL part, styling only the label.
    */
   processLink(text5, pushRange, start, end) {
     const raw = text5.substring(start, end);
     const closingBracketIdx = raw.lastIndexOf("](");
     if (closingBracketIdx !== -1) {
       const urlPart = raw.substring(closingBracketIdx + 2, raw.length - 1);
-      pushRange(start, start + 1, "hide", { activeRangeStart: start, activeRangeEnd: end });
-      pushRange(start + 1, start + closingBracketIdx, "link", { metadata: { url: urlPart }, activeRangeStart: start, activeRangeEnd: end });
-      pushRange(start + closingBracketIdx, end, "hide", { activeRangeStart: start, activeRangeEnd: end });
+      pushRange(start, start + 1, DecorationType.Hide, { activeRangeStart: start, activeRangeEnd: end });
+      pushRange(start + 1, start + closingBracketIdx, DecorationType.Link, { metadata: { url: urlPart }, activeRangeStart: start, activeRangeEnd: end });
+      pushRange(start + closingBracketIdx, end, DecorationType.Hide, { activeRangeStart: start, activeRangeEnd: end });
     }
   }
   /**
    * Process Markdown images ![alt](url).
-   * Provides metadata for the decorator to render an image preview or anchor.
    */
   processImage(node2, text5, pushRange, start, end, ancestors) {
     const url = node2.url;
@@ -11892,14 +12053,10 @@ var MarkdownParser = class {
     const parent = ancestors[ancestors.length - 1];
     const isBlock = parent && parent.type === "paragraph" && parent.children.length === 1;
     const metadata = { url, alt, isBlock };
-    pushRange(start, end, "image", { metadata, activeRangeStart: start, activeRangeEnd: end });
+    pushRange(start, end, DecorationType.Image, { metadata, activeRangeStart: start, activeRangeEnd: end });
   }
-  // pushRange(start, start + 1, 'hide', { activeRangeStart: start, activeRangeEnd: end });
-  // pushRange(start + 1, end - 1, 'code', { activeRangeStart: start, activeRangeEnd: end });
-  // pushRange(end - 1, end, 'hide', { activeRangeStart: start, activeRangeEnd: end });
   /**
    * Process inline code (e.g., `code`).
-   * Hides backticks and applies the 'code' background decoration.
    */
   processInlineCode(text5, pushRange, start, end) {
     let openLen = 0;
@@ -11911,28 +12068,27 @@ var MarkdownParser = class {
       closeLen++;
     }
     if (openLen > 0 && closeLen > 0) {
-      pushRange(start, start + openLen, "hide", { activeRangeStart: start, activeRangeEnd: end });
-      pushRange(end - closeLen, end, "hide", { activeRangeStart: start, activeRangeEnd: end });
-      pushRange(start + openLen, end - closeLen, "code", { activeRangeStart: start, activeRangeEnd: end });
+      pushRange(start, start + openLen, DecorationType.Hide, { activeRangeStart: start, activeRangeEnd: end });
+      pushRange(end - closeLen, end, DecorationType.Hide, { activeRangeStart: start, activeRangeEnd: end });
+      pushRange(start + openLen, end - closeLen, DecorationType.Code, { activeRangeStart: start, activeRangeEnd: end });
     } else {
-      pushRange(start, end, "code", { activeRangeStart: start, activeRangeEnd: end });
+      pushRange(start, end, DecorationType.Code, { activeRangeStart: start, activeRangeEnd: end });
     }
   }
   /**
    * Process fenced code blocks (```lang ... ```).
-   * Hides the start/end fences and applies 'codeBlock' styling to the whole range.
    */
   processCodeBlock(node2, text5, pushRange, start, end) {
     const blockId = `code-${start}`;
     const firstNewline = text5.indexOf("\n", start);
     if (firstNewline !== -1 && firstNewline < end) {
-      pushRange(start, firstNewline + 1, "hide", { blockId });
+      pushRange(start, firstNewline + 1, DecorationType.Hide, { blockId });
       const lastNewline = text5.lastIndexOf("\n", end - 1);
       if (lastNewline !== -1 && lastNewline > firstNewline) {
-        pushRange(lastNewline, end, "hide", { blockId });
+        pushRange(lastNewline, end, DecorationType.Hide, { blockId });
       }
     }
-    pushRange(start, end, "codeBlock", { blockId });
+    pushRange(start, end, DecorationType.CodeBlock, { blockId });
   }
   /**
    * Process Markdown tables. 
@@ -11952,7 +12108,7 @@ var MarkdownParser = class {
         return node3.value || "";
       }
       if (node3.children) {
-        return node3.children.map(getVisibleText).join("");
+        return node3.children.map((child) => getVisibleText(child)).join("");
       }
       return "";
     };
@@ -11973,7 +12129,7 @@ var MarkdownParser = class {
       const sepLine = text5.substring(firstNewlineIdx + 1, sepEnd);
       if (sepLine.trim().match(/^\|?(\s*:?-+:?\s*\|?)+$/)) {
         const visualEnd = secondNewlineIdx !== -1 ? secondNewlineIdx : sepEnd;
-        pushRange(firstNewlineIdx + 1, visualEnd, "tableHeaderRow", {
+        pushRange(firstNewlineIdx + 1, visualEnd, DecorationType.TableHeaderRow, {
           blockId,
           metadata: { totalWidth: totalTableWidth },
           activeRangeStart: start,
@@ -11996,7 +12152,7 @@ var MarkdownParser = class {
         if (rowIndex > 0) {
           const nextRow = node2.children[rowIndex + 1];
           if (nextRow && nextRow.position?.start?.offset !== void 0 && nextRow.position?.end?.offset !== void 0) {
-            pushRange(nextRow.position.start.offset, nextRow.position.start.offset, "tableRow", {
+            pushRange(nextRow.position.start.offset, nextRow.position.start.offset, DecorationType.TableRow, {
               blockId,
               metadata: { totalWidth: totalTableWidth },
               activeRangeStart: start,
@@ -12026,7 +12182,9 @@ var MarkdownParser = class {
           if (nonSpaceIdx !== -1) {
             innerStart = cellStart + nonSpaceIdx;
             let lastIdx = rawText.length - 1;
-            while (lastIdx >= 0 && (rawText[lastIdx] === " " || rawText[lastIdx] === "	" || rawText[lastIdx] === "|")) lastIdx--;
+            while (lastIdx >= 0 && (rawText[lastIdx] === " " || rawText[lastIdx] === "	" || rawText[lastIdx] === "|")) {
+              lastIdx--;
+            }
             innerEnd = cellStart + lastIdx + 1;
           } else if (cellEnd > cellStart) {
             const mid = Math.floor((cellStart + cellEnd) / 2);
@@ -12040,12 +12198,12 @@ var MarkdownParser = class {
         const len = visualLength(visibleTexts.get(cell) || "");
         const diff = Math.max((colWidths[i] || 3) - len, 0);
         if (innerStart > cellStart) {
-          pushRange(cellStart, innerStart, "hide", { blockId, activeRangeStart: start, activeRangeEnd: end });
+          pushRange(cellStart, innerStart, DecorationType.Hide, { blockId, activeRangeStart: start, activeRangeEnd: end });
         }
         if (innerEnd < cellEnd) {
-          pushRange(innerEnd, cellEnd, "hide", { blockId, activeRangeStart: start, activeRangeEnd: end });
+          pushRange(innerEnd, cellEnd, DecorationType.Hide, { blockId, activeRangeStart: start, activeRangeEnd: end });
         }
-        pushRange(innerStart, innerEnd, "tableCell", {
+        pushRange(innerStart, innerEnd, DecorationType.TableCell, {
           blockId,
           metadata: { diff, align: node2.align?.[i], empty: cell.children.length === 0, isHeader: rowIndex === 0 },
           activeRangeStart: start,
@@ -12055,8 +12213,7 @@ var MarkdownParser = class {
     });
   }
   /**
-   * Process unordered list items.
-   * Replaces the standard marker (-, *, +) with custom bullet decorations.
+   * Process unordered list items. Replaces the standard marker (-, *, +) with custom bullet decorations.
    */
   processListItem(node2, text5, ancestors, pushRange, start, end) {
     const blockId = `item-${start}`;
@@ -12066,7 +12223,7 @@ var MarkdownParser = class {
       if (ancestors[i2].type === "list") {
         listDepth++;
         if (listDepth === 1) {
-          isOrdered = ancestors[i2].ordered;
+          isOrdered = !!ancestors[i2].ordered;
         }
       }
     }
@@ -12087,8 +12244,10 @@ var MarkdownParser = class {
         i++;
       }
       let activeEnd = text5.indexOf("\n", markerStart);
-      if (activeEnd === -1 || activeEnd > end) activeEnd = end;
-      pushRange(markerStart, i, "hide", { blockId, activeRangeStart: start, activeRangeEnd: activeEnd });
+      if (activeEnd === -1 || activeEnd > end) {
+        activeEnd = end;
+      }
+      pushRange(markerStart, i, DecorationType.Hide, { blockId, activeRangeStart: start, activeRangeEnd: activeEnd });
       if (node2.checked !== null && node2.checked !== void 0) {
         const checked = node2.checked;
         const checkboxSearchText = text5.substring(i, i + 10);
@@ -12096,8 +12255,8 @@ var MarkdownParser = class {
         if (checkboxMatch) {
           const checkboxStart = i;
           const checkboxEnd = i + checkboxMatch[0].length;
-          const type = checked ? "task_checked" : "task_unchecked";
-          pushRange(checkboxStart, checkboxEnd, "hide", { blockId, activeRangeStart: start, activeRangeEnd: activeEnd });
+          const type = checked ? DecorationType.TaskChecked : DecorationType.TaskUnchecked;
+          pushRange(checkboxStart, checkboxEnd, DecorationType.Hide, { blockId, activeRangeStart: start, activeRangeEnd: activeEnd });
           pushRange(checkboxStart, checkboxStart, type, { blockId });
           i = checkboxEnd;
           while (i < end && (text5[i] === " " || text5[i] === "	")) {
@@ -12113,7 +12272,6 @@ var MarkdownParser = class {
   }
   /**
    * Process blockquotes (> text).
-   * Applies a vertical bar styling to the markers and a background to the content.
    */
   processBlockquote(text5, pushRange, start, end, ancestors) {
     if (ancestors.some((a) => a.type === "blockquote")) {
@@ -12121,7 +12279,7 @@ var MarkdownParser = class {
     }
     const outerQuote = ancestors.find((a) => a.type === "blockquote") || { position: { start: { offset: start } } };
     const blockId = `quote-${outerQuote.position?.start?.offset ?? start}`;
-    pushRange(start, end, "blockquote_bg", { blockId });
+    pushRange(start, end, DecorationType.BlockquoteBg, { blockId });
     let currentOffset = start;
     const subText = text5.substring(start, end);
     const lines = subText.split("\n");
@@ -12133,16 +12291,16 @@ var MarkdownParser = class {
         const whitespace = match[1];
         const markerPart = match[2];
         if (whitespace.length > 0) {
-          pushRange(currentOffset, currentOffset + whitespace.length, "hide", { blockId, activeRangeStart: currentOffset, activeRangeEnd: lineEnd });
+          pushRange(currentOffset, currentOffset + whitespace.length, DecorationType.Hide, { blockId, activeRangeStart: currentOffset, activeRangeEnd: lineEnd });
         }
         let markerIndex = 0;
         for (let j = 0; j < markerPart.length; j++) {
           const charStart = currentOffset + whitespace.length + j;
           if (markerPart[j] === " " || markerPart[j] === "	") {
-            pushRange(charStart, charStart + 1, "hide", { blockId, activeRangeStart: currentOffset, activeRangeEnd: lineEnd });
+            pushRange(charStart, charStart + 1, DecorationType.Hide, { blockId, activeRangeStart: currentOffset, activeRangeEnd: lineEnd });
           } else if (markerPart[j] === ">") {
             markerIndex++;
-            pushRange(charStart, charStart + 1, "blockquote_marker", {
+            pushRange(charStart, charStart + 1, DecorationType.BlockquoteMarker, {
               blockId,
               activeRangeStart: currentOffset,
               activeRangeEnd: lineEnd,
@@ -12156,11 +12314,10 @@ var MarkdownParser = class {
   }
   /**
    * Process horizontal rules (---, ***, etc.).
-   * Hides the marker and renders a custom horizontal line.
    */
   processHR(pushRange, start, end) {
-    pushRange(start, end, "hide");
-    pushRange(start, end, "hr");
+    pushRange(start, end, DecorationType.Hide);
+    pushRange(start, end, DecorationType.Hr);
   }
 };
 

@@ -30,6 +30,12 @@ export const DecorationType = {
     TableCell: 'tableCell',
     BlockquoteBg: 'blockquote_bg',
     BlockquoteMarker: 'blockquote_marker',
+
+    HtmlBr: 'htmlBr',
+    Underline: 'underline',
+    Mark: 'mark',
+    Superscript: 'superscript',
+    Subscript: 'subscript',
 } as const;
 
 /**
@@ -70,6 +76,7 @@ export class MarkdownParser {
     private lastText: string = '';
     private lastRanges: DecorationRange[] = [];
     private handlers: Partial<Record<NodeType, (node: Node, ancestors: Node[], text: string, pushRange: PushRangeFn) => void>>;
+    private openHtmlTags: { tag: string, startPos: number, endPos: number, blockId?: string }[] = [];
 
     /**
      * Initialize the unified processor with remark-parse and remark-gfm.
@@ -92,7 +99,8 @@ export class MarkdownParser {
             'table': (node, _, text, push) => this.processTable(node as Table, text, push, node.position!.start.offset!, node.position!.end.offset!),
             'listItem': (node, ancestors, text, push) => this.processListItem(node as ListItem, text, ancestors, push, node.position!.start.offset!, node.position!.end.offset!),
             'blockquote': (node, ancestors, text, push) => this.processBlockquote(text, push, node.position!.start.offset!, node.position!.end.offset!, ancestors),
-            'thematicBreak': (node, _, __, push) => this.processHR(push, node.position!.start.offset!, node.position!.end.offset!)
+            'thematicBreak': (node, _, __, push) => this.processHR(push, node.position!.start.offset!, node.position!.end.offset!),
+            'html': (node, ancestors, text, push) => this.processHtml(node as Node & { value?: string }, text, push, ancestors)
         };
     }
 
@@ -106,6 +114,7 @@ export class MarkdownParser {
             return this.lastRanges;
         }
 
+        this.openHtmlTags = [];
         const ranges: DecorationRange[] = [];
         const lineOffsets: number[] = [0];
         for (let i = 0; i < text.length; i++) {
@@ -172,7 +181,7 @@ export class MarkdownParser {
      * Determines a shared blockId for nested inline formatting elements
      */
     private getFormattingRootId(node: Node, ancestors: Node[]): string | undefined {
-        const formattingTypes = ['strong', 'emphasis', 'delete', 'link', 'inlineCode', 'heading', 'image'];
+        const formattingTypes = ['strong', 'emphasis', 'delete', 'link', 'inlineCode', 'heading', 'image', 'html'];
         if (!formattingTypes.includes(node.type)) {
             return undefined;
         }
@@ -192,6 +201,155 @@ export class MarkdownParser {
             return `inline-${root.position.start.offset}`;
         }
         return undefined;
+    }
+
+    /**
+     * Process HTML nodes (e.g., <em>, <strong>, <br>)
+     */
+    private processHtml(node: Node & { value?: string }, text: string, pushRange: PushRangeFn, ancestors: Node[]) {
+        const value = node.value?.toLowerCase() || '';
+        const start = node.position!.start.offset!;
+        const end = node.position!.end.offset!;
+        const blockId = this.getFormattingRootId(node, ancestors);
+
+        if (value.startsWith('<br>')) {
+            pushRange(start, end, DecorationType.HtmlBr, { blockId, activeRangeStart: start, activeRangeEnd: end });
+        } else if (value.startsWith('<br/>') || value.startsWith('<br />')) {
+            pushRange(start, end, DecorationType.HtmlBr, { blockId, activeRangeStart: start, activeRangeEnd: end });
+        } else if (value === '<em>' || value === '<i>') {
+            this.openHtmlTags.push({ tag: value, startPos: start, endPos: end, blockId });
+        } else if (value === '</em>' || value === '</i>') {
+            const openTag = value === '</em>' ? '<em>' : '<i>';
+            let foundIndex = -1;
+            for (let i = this.openHtmlTags.length - 1; i >= 0; i--) {
+                if (this.openHtmlTags[i].tag === openTag) {
+                    foundIndex = i;
+                    break;
+                }
+            }
+            if (foundIndex !== -1) {
+                const openNode = this.openHtmlTags[foundIndex];
+                this.openHtmlTags.splice(foundIndex, 1);
+
+                pushRange(openNode.startPos, openNode.endPos, DecorationType.Hide, { blockId: openNode.blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+                pushRange(start, end, DecorationType.Hide, { blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+                pushRange(openNode.endPos, start, DecorationType.Italic, { activeRangeStart: openNode.startPos, activeRangeEnd: end });
+            }
+        } else if (value === '<strong>' || value === '<b>') {
+            this.openHtmlTags.push({ tag: value, startPos: start, endPos: end, blockId });
+        } else if (value === '</strong>' || value === '</b>') {
+            const openTag = value === '</strong>' ? '<strong>' : '<b>';
+            let foundIndex = -1;
+            for (let i = this.openHtmlTags.length - 1; i >= 0; i--) {
+                if (this.openHtmlTags[i].tag === openTag) {
+                    foundIndex = i;
+                    break;
+                }
+            }
+            if (foundIndex !== -1) {
+                const openNode = this.openHtmlTags[foundIndex];
+                this.openHtmlTags.splice(foundIndex, 1);
+
+                pushRange(openNode.startPos, openNode.endPos, DecorationType.Hide, { blockId: openNode.blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+                pushRange(start, end, DecorationType.Hide, { blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+                pushRange(openNode.endPos, start, DecorationType.Bold, { activeRangeStart: openNode.startPos, activeRangeEnd: end });
+            }
+        } else if (value === '<del>' || value === '<s>') {
+            this.openHtmlTags.push({ tag: value, startPos: start, endPos: end, blockId });
+        } else if (value === '</del>' || value === '</s>') {
+            const openTag = value === '</del>' ? '<del>' : '<s>';
+            let foundIndex = -1;
+            for (let i = this.openHtmlTags.length - 1; i >= 0; i--) {
+                if (this.openHtmlTags[i].tag === openTag) {
+                    foundIndex = i;
+                    break;
+                }
+            }
+            if (foundIndex !== -1) {
+                const openNode = this.openHtmlTags[foundIndex];
+                this.openHtmlTags.splice(foundIndex, 1);
+
+                pushRange(openNode.startPos, openNode.endPos, DecorationType.Hide, { blockId: openNode.blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+                pushRange(start, end, DecorationType.Hide, { blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+                pushRange(openNode.endPos, start, DecorationType.Strikethrough, { activeRangeStart: openNode.startPos, activeRangeEnd: end });
+            }
+        } else if (value === '<u>') {
+            this.openHtmlTags.push({ tag: value, startPos: start, endPos: end, blockId });
+        } else if (value === '</u>') {
+            const openTag = '<u>';
+            let foundIndex = -1;
+            for (let i = this.openHtmlTags.length - 1; i >= 0; i--) {
+                if (this.openHtmlTags[i].tag === openTag) {
+                    foundIndex = i;
+                    break;
+                }
+            }
+            if (foundIndex !== -1) {
+                const openNode = this.openHtmlTags[foundIndex];
+                this.openHtmlTags.splice(foundIndex, 1);
+
+                pushRange(openNode.startPos, openNode.endPos, DecorationType.Hide, { blockId: openNode.blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+                pushRange(start, end, DecorationType.Hide, { blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+                pushRange(openNode.endPos, start, DecorationType.Underline, { activeRangeStart: openNode.startPos, activeRangeEnd: end });
+            }
+        } else if (value === '<mark>') {
+            this.openHtmlTags.push({ tag: value, startPos: start, endPos: end, blockId });
+        } else if (value === '</mark>') {
+            const openTag = '<mark>';
+            let foundIndex = -1;
+            for (let i = this.openHtmlTags.length - 1; i >= 0; i--) {
+                if (this.openHtmlTags[i].tag === openTag) {
+                    foundIndex = i;
+                    break;
+                }
+            }
+            if (foundIndex !== -1) {
+                const openNode = this.openHtmlTags[foundIndex];
+                this.openHtmlTags.splice(foundIndex, 1);
+
+                pushRange(openNode.startPos, openNode.endPos, DecorationType.Hide, { blockId: openNode.blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+                pushRange(start, end, DecorationType.Hide, { blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+                pushRange(openNode.endPos, start, DecorationType.Mark, { activeRangeStart: openNode.startPos, activeRangeEnd: end });
+            }
+        } else if (value === '<sup>') {
+            this.openHtmlTags.push({ tag: value, startPos: start, endPos: end, blockId });
+        } else if (value === '</sup>') {
+            const openTag = '<sup>';
+            let foundIndex = -1;
+            for (let i = this.openHtmlTags.length - 1; i >= 0; i--) {
+                if (this.openHtmlTags[i].tag === openTag) {
+                    foundIndex = i;
+                    break;
+                }
+            }
+            if (foundIndex !== -1) {
+                const openNode = this.openHtmlTags[foundIndex];
+                this.openHtmlTags.splice(foundIndex, 1);
+
+                pushRange(openNode.startPos, openNode.endPos, DecorationType.Hide, { blockId: openNode.blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+                pushRange(start, end, DecorationType.Hide, { blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+                pushRange(openNode.endPos, start, DecorationType.Superscript, { activeRangeStart: openNode.startPos, activeRangeEnd: end });
+            }
+        } else if (value === '<sub>') {
+            this.openHtmlTags.push({ tag: value, startPos: start, endPos: end, blockId });
+        } else if (value === '</sub>') {
+            const openTag = '<sub>';
+            let foundIndex = -1;
+            for (let i = this.openHtmlTags.length - 1; i >= 0; i--) {
+                if (this.openHtmlTags[i].tag === openTag) {
+                    foundIndex = i;
+                    break;
+                }
+            }
+            if (foundIndex !== -1) {
+                const openNode = this.openHtmlTags[foundIndex];
+                this.openHtmlTags.splice(foundIndex, 1);
+
+                pushRange(openNode.startPos, openNode.endPos, DecorationType.Hide, { blockId: openNode.blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+                pushRange(start, end, DecorationType.Hide, { blockId, activeRangeStart: openNode.startPos, activeRangeEnd: end });
+                pushRange(openNode.endPos, start, DecorationType.Subscript, { activeRangeStart: openNode.startPos, activeRangeEnd: end });
+            }
+        }
     }
 
     /**
